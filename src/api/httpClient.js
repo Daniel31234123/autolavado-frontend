@@ -65,5 +65,9 @@ export async function httpRequest(path, options = {}) {
 
 export const http = {
   get: (path) => httpRequest(path, { method: "GET" }),
-  post: (path, data) => httpRequest(path, { method: "POST", body: JSON.stringify(data) }),
+  post: (path, data) => httpRequest(path, { method: "POST", body: data ? JSON.stringify(data) : undefined }),
+  patch: (path, data) => httpRequest(path, { method: "PATCH", body: data ? JSON.stringify(data) : undefined }),
+  put: (path, data) => httpRequest(path, { method: "PUT", body: data ? JSON.stringify(data) : undefined }),
+  delete: (path) => httpRequest(path, { method: "DELETE" }),
 };
+

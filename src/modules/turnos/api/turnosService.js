@@ -72,4 +72,47 @@ export const turnosService = {
       fechaIngreso: turno.fecha_ingreso,
     };
   },
+
+  /**
+   * PATCH /api/v1/turnos/{id}/finalizar
+   * @param {string|number} id
+   * @returns {Promise<Turno>}
+   */
+  finalizar: async (id) => {
+    const turno = await http.patch(`/api/v1/turnos/${id}/finalizar`);
+    return {
+      ...turno,
+      numeroTurno: turno.numero_turno,
+      tipoVehiculo: turno.tipo_vehiculo,
+      telefonoCliente: turno.telefono_cliente,
+      idServicio: turno.id_servicio,
+      idOperario: turno.id_operario,
+      idBahia: turno.id_bahia,
+      estadoActual: turno.estado_actual,
+      fechaIngreso: turno.fecha_ingreso,
+      hashConsulta: turno.hash_consulta,
+    };
+  },
+
+  /**
+   * PATCH /api/v1/turnos/{id}/cancelar
+   * @param {string|number} id
+   * @returns {Promise<Turno>}
+   */
+  cancelar: async (id) => {
+    const turno = await http.patch(`/api/v1/turnos/${id}/cancelar`);
+    return {
+      ...turno,
+      numeroTurno: turno.numero_turno,
+      tipoVehiculo: turno.tipo_vehiculo,
+      telefonoCliente: turno.telefono_cliente,
+      idServicio: turno.id_servicio,
+      idOperario: turno.id_operario,
+      idBahia: turno.id_bahia,
+      estadoActual: turno.estado_actual,
+      fechaIngreso: turno.fecha_ingreso,
+      hashConsulta: turno.hash_consulta,
+    };
+  },
 };
+

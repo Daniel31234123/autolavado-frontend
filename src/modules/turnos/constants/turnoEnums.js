@@ -13,8 +13,11 @@ export const TIPO_VEHICULO = {
 };
 
 export const ESTADO_TURNO = {
-  RECEPCION: { label: "En espera", tone: "neutral" },
+  RECEPCION: { label: "En espera", tone: "warning" },
+  FINALIZADO: { label: "Finalizado", tone: "positive" },
+  CANCELADO: { label: "Cancelado", tone: "danger" },
 };
+
 
 export function getTipoVehiculoLabel(tipo) {
   if (tipo === null || tipo === undefined) return "Sin especificar";
