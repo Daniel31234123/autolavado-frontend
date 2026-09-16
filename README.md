@@ -42,19 +42,27 @@ src/
 
 Cada módulo es independiente: su `api/` solo llama a los endpoints de ese recurso, sus `hooks/` envuelven esas llamadas con estado de loading/error, y sus `components/` son puramente de ese recurso. La única excepción intencional es `TurnosPage`, que necesita datos de Servicios/Operarios/Bahías para los selects del formulario de turno — en vez de que el módulo de Turnos importe los servicios de los otros módulos, es la **página** la que compone los hooks de cada módulo y pasa los datos por props. Así ningún módulo depende internamente de otro.
 
-## ⚠️ Sobre los enums (`TipoVehiculo`, `TipoBahia`, `EstadoBahia`, `EstadoTurno`)
+## Enums (`TipoVehiculo`, `TipoBahia`, `EstadoBahia`, `EstadoTurno`)
 
-El spec de OpenAPI del backend define estos campos como simples `integer`, sin exponer qué significa cada número. Mientras no tuve acceso al código fuente del backend, dejé valores de ejemplo razonables (basados en el dominio) en:
+El backend los expone como strings (confirmado contra el runtime y el spec OpenAPI):
+
+- `TipoVehiculo`: `AUTO` | `MOTO` | `CAMIONETA`
+- `TipoBahia`: `GENERAL` | `DETAILING` | `SECADO`
+- `EstadoBahia`: `DISPONIBLE` | `OCUPADA` | `MANTENIMIENTO`
+- `EstadoTurno`: `RECEPCION` (el tablero agrega columnas automáticamente si el backend suma estados)
+
+Los mapeos viven en:
 
 - `src/modules/bahias/constants/bahiaEnums.js`
 - `src/modules/turnos/constants/turnoEnums.js`
 
-Cada archivo tiene un comentario marcando esto. **Antes de usar la app en serio, confirma con el backend (o con tu amigo) los valores reales de esos enums y actualiza solo esos dos archivos** — el resto de la app no depende de los números directamente, así que el cambio queda aislado ahí.
+Si el backend agrega valores nuevos, basta con sumarlos a esos dos archivos.
 
 ## Endpoints cubiertos
 
 | Método | Ruta | Módulo |
 |---|---|---|
+| GET | `/api/v1/bahias` | Bahías |
 | GET | `/api/v1/bahias/disponibles` | Bahías |
 | GET | `/api/v1/operarios/activos` | Operarios |
 | POST | `/api/v1/operarios` | Operarios |

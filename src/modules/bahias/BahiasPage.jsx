@@ -5,7 +5,7 @@ export function BahiasPage() {
     <section className="page">
       <header className="page__header">
         <h1>Bahías</h1>
-        <p>Disponibilidad de bahías de lavado en este momento.</p>
+        <p>Estado de las bahías de lavado (disponible, ocupada, mantenimiento).</p>
       </header>
       <BahiasGrid />
     </section>

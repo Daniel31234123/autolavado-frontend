@@ -1,21 +1,19 @@
 /**
- * El spec de OpenAPI define TipoBahia y EstadoBahia como enteros puros,
- * sin exponer qué significa cada número. Estos mapeos son una SUPOSICIÓN
- * razonable basada en el dominio (autolavado) para que la UI no muestre
- * números sueltos. Confirma los valores reales con el backend/tu amigo y
- * ajusta solo este archivo — nada más del módulo depende de los números.
+ * Valores confirmados contra el backend (enum strings en el runtime y en
+ * el spec OpenAPI): TipoBahia = GENERAL | DETAILING | SECADO y
+ * EstadoBahia = DISPONIBLE | OCUPADA | MANTENIMIENTO.
  */
 
 export const TIPO_BAHIA = {
-  0: "General",
-  1: "Motos",
-  2: "Camionetas / SUV",
+  GENERAL: "General",
+  DETAILING: "Detailing",
+  SECADO: "Secado",
 };
 
 export const ESTADO_BAHIA = {
-  0: { label: "Disponible", tone: "positive" },
-  1: { label: "Ocupada", tone: "warning" },
-  2: { label: "Mantenimiento", tone: "danger" },
+  DISPONIBLE: { label: "Disponible", tone: "positive" },
+  OCUPADA: { label: "Ocupada", tone: "warning" },
+  MANTENIMIENTO: { label: "Mantenimiento", tone: "danger" },
 };
 
 export function getTipoBahiaLabel(tipo) {

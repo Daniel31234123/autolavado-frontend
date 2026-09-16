@@ -14,14 +14,15 @@ export function TurnosBoard({ turnos, isLoading, isError, error, onRetry }) {
     return <EmptyState title="No hay turnos activos" description="Crea uno nuevo con el formulario de la derecha." />;
   }
 
-  const columnas = Object.keys(ESTADO_TURNO).map((estadoKey) => {
-    const estado = estadoKey;
-    return {
-      estado,
-      info: getEstadoTurnoInfo(estado),
-      items: turnos.filter((t) => t.estadoActual === estado),
-    };
-  });
+  const estadosConocidos = Object.keys(ESTADO_TURNO);
+  const estadosExtra = [...new Set(turnos.map((t) => t.estadoActual))].filter(
+    (estado) => !estadosConocidos.includes(estado)
+  );
+  const columnas = [...estadosConocidos, ...estadosExtra].map((estado) => ({
+    estado,
+    info: getEstadoTurnoInfo(estado),
+    items: turnos.filter((t) => t.estadoActual === estado),
+  }));
 
   return (
     <div className="board">

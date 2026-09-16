@@ -1,8 +1,9 @@
 /**
- * Igual que en bahias/constants/bahiaEnums.js: TipoVehiculo y EstadoTurno
- * llegan del backend como enteros sin diccionario de significados en el
- * spec de OpenAPI. Estos valores son una SUPOSICIÓN razonable — confírmalos
- * con el backend y ajusta solo este archivo.
+ * Valores confirmados contra el backend (enum strings en el runtime y en
+ * el spec OpenAPI): TipoVehiculo = AUTO | MOTO | CAMIONETA.
+ *
+ * EstadoTurno hoy solo define RECEPCION en el backend. Si agregan estados,
+ * basta con sumarlos aquí: el tablero arma sus columnas a partir de este mapa.
  */
 
 export const TIPO_VEHICULO = {
@@ -13,9 +14,6 @@ export const TIPO_VEHICULO = {
 
 export const ESTADO_TURNO = {
   RECEPCION: { label: "En espera", tone: "neutral" },
-  EN_SERVICIO: { label: "En servicio", tone: "warning" },
-  FINALIZADO: { label: "Finalizado", tone: "positive" },
-  CANCELADO: { label: "Cancelado", tone: "danger" },
 };
 
 export function getTipoVehiculoLabel(tipo) {

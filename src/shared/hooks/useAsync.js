@@ -7,17 +7,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *
  * @param {() => Promise<any>} asyncFn
  * @param {any[]} deps
+ * @param {{ pollMs?: number }} [options] - si pollMs > 0, refresca en segundo
+ *   plano sin volver a mostrar el loader ni pisar datos ya cargados.
  */
-export function useAsync(asyncFn, deps = []) {
+export function useAsync(asyncFn, deps = [], options = {}) {
+  const { pollMs = 0 } = options;
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const fnRef = useRef(asyncFn);
   fnRef.current = asyncFn;
 
-  const execute = useCallback(() => {
-    setStatus("loading");
-    setError(null);
+  const execute = useCallback(({ silent = false } = {}) => {
+    if (!silent) {
+      setStatus("loading");
+      setError(null);
+    }
     return fnRef
       .current()
       .then((result) => {
@@ -26,8 +31,10 @@ export function useAsync(asyncFn, deps = []) {
         return result;
       })
       .catch((err) => {
-        setError(err);
-        setStatus("error");
+        if (!silent) {
+          setError(err);
+          setStatus("error");
+        }
         throw err;
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -36,6 +43,12 @@ export function useAsync(asyncFn, deps = []) {
   useEffect(() => {
     execute().catch(() => {});
   }, [execute]);
+
+  useEffect(() => {
+    if (!pollMs) return undefined;
+    const id = setInterval(() => execute({ silent: true }).catch(() => {}), pollMs);
+    return () => clearInterval(id);
+  }, [execute, pollMs]);
 
   return {
     data,
