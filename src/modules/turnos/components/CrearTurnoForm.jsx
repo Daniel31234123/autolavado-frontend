@@ -35,7 +35,11 @@ export function CrearTurnoForm({ servicios = [], operarios = [], bahias = [], on
 
   function validate() {
     if (form.placa.length !== 6) return "La placa debe tener exactamente 6 caracteres.";
+    if (!form.tipoVehiculo) return "Selecciona el tipo de vehículo.";
     if (!/^[0-9]{10}$/.test(form.telefonoCliente)) return "El teléfono del cliente debe tener exactamente 10 dígitos.";
+    if (!form.idServicio) return "Selecciona un servicio.";
+    if (!form.idOperario) return "Selecciona un operario.";
+    if (!form.idBahia) return "Selecciona una bahía.";
     return null;
   }
 
@@ -47,11 +51,11 @@ export function CrearTurnoForm({ servicios = [], operarios = [], bahias = [], on
 
     const payload = {
       placa: form.placa.toUpperCase(),
-      tipo_vehiculo: form.tipoVehiculo === "" ? null : form.tipoVehiculo,
+      tipo_vehiculo: form.tipoVehiculo,
       telefono_cliente: form.telefonoCliente,
-      ...(form.idServicio ? { id_servicio: form.idServicio } : {}),
-      ...(form.idOperario ? { id_operario: form.idOperario } : {}),
-      ...(form.idBahia ? { id_bahia: form.idBahia } : {}),
+      id_servicio: form.idServicio,
+      id_operario: form.idOperario,
+      id_bahia: form.idBahia,
     };
 
     try {
@@ -81,8 +85,10 @@ export function CrearTurnoForm({ servicios = [], operarios = [], bahias = [], on
         </label>
         <label className="form__field">
           <span>Tipo de vehículo</span>
-          <select value={form.tipoVehiculo} onChange={(e) => updateField("tipoVehiculo", e.target.value)}>
-            <option value="">Sin especificar</option>
+          <select required value={form.tipoVehiculo} onChange={(e) => updateField("tipoVehiculo", e.target.value)}>
+            <option value="" disabled>
+              Selecciona un tipo
+            </option>
             {TIPO_VEHICULO_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
@@ -106,8 +112,10 @@ export function CrearTurnoForm({ servicios = [], operarios = [], bahias = [], on
 
       <label className="form__field">
         <span>Servicio</span>
-        <select value={form.idServicio} onChange={(e) => updateField("idServicio", e.target.value)}>
-          <option value="">Sin asignar</option>
+        <select required value={form.idServicio} onChange={(e) => updateField("idServicio", e.target.value)}>
+          <option value="" disabled>
+            Selecciona un servicio
+          </option>
           {servicios.map((s) => (
             <option key={s.id} value={s.id}>
               {s.nombre}
@@ -119,8 +127,10 @@ export function CrearTurnoForm({ servicios = [], operarios = [], bahias = [], on
       <div className="form__row">
         <label className="form__field">
           <span>Operario</span>
-          <select value={form.idOperario} onChange={(e) => updateField("idOperario", e.target.value)}>
-            <option value="">Sin asignar</option>
+          <select required value={form.idOperario} onChange={(e) => updateField("idOperario", e.target.value)}>
+            <option value="" disabled>
+              Selecciona un operario
+            </option>
             {operarios.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.nombres} {o.apellidos}
@@ -130,8 +140,10 @@ export function CrearTurnoForm({ servicios = [], operarios = [], bahias = [], on
         </label>
         <label className="form__field">
           <span>Bahía</span>
-          <select value={form.idBahia} onChange={(e) => updateField("idBahia", e.target.value)}>
-            <option value="">Sin asignar</option>
+          <select required value={form.idBahia} onChange={(e) => updateField("idBahia", e.target.value)}>
+            <option value="" disabled>
+              Selecciona una bahía
+            </option>
             {bahias.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.nombreBahia}

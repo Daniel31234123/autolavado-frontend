@@ -18,11 +18,11 @@ import { http } from "../../../api/httpClient.js";
 /**
  * @typedef {Object} CrearTurnoRequest
  * @property {string} placa            - exactamente 6 caracteres
- * @property {"AUTO"|"MOTO"|"CAMIONETA"|null} tipo_vehiculo
+ * @property {"AUTO"|"MOTO"|"CAMIONETA"} tipo_vehiculo - obligatorio
  * @property {string} telefono_cliente - exactamente 10 dígitos
- * @property {string} id_servicio
- * @property {string} id_operario
- * @property {string} id_bahia
+ * @property {string} id_servicio      - obligatorio
+ * @property {string} id_operario      - obligatorio
+ * @property {string} id_bahia         - obligatorio
  */
 
 /**
