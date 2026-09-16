@@ -53,6 +53,23 @@ export const turnosApi = {
   crear: (payload) => http.post("/api/v1/turnos", payload),
 
   /**
+   * Obtiene la trazabilidad en tiempo real de un vehículo por placa o hash
+   * @param {string} identificador
+   * @returns {Promise<any>}
+   */
+  obtenerTrazabilidad: (identificador) =>
+    http.get(`/api/v1/turnos/trazabilidad/${encodeURIComponent(identificador)}`),
+
+  /**
+   * Actualiza la fase de lavado de un turno en patio
+   * @param {number} id
+   * @param {string} nuevaFase
+   * @returns {Promise<Turno>}
+   */
+  actualizarFase: (id, nuevaFase) =>
+    http.patch(`/api/v1/turnos/${id}/fase`, { nueva_fase: nuevaFase }),
+
+  /**
    * Finaliza la atención de un turno
    * @param {number} id
    * @returns {Promise<Turno>}

@@ -113,6 +113,18 @@ export function TurnosPage() {
     }
   };
 
+  const handleActualizarFase = async (id, nuevaFase) => {
+    setActionError(null);
+    try {
+      await turnosApi.actualizarFase(id, nuevaFase);
+      setActionMessage(`Fase actualizada a ${nuevaFase}. Difundido en vivo a la pantalla del cliente.`);
+      refreshAll();
+      setTimeout(() => setActionMessage(null), 3000);
+    } catch (err) {
+      setActionError(err.message || "Error al actualizar la fase del turno.");
+    }
+  };
+
   if (!isAdmin) {
     return (
       <section className="page page--empty" id="operario-empty-page" style={{ minHeight: "80vh" }}>
@@ -157,6 +169,7 @@ export function TurnosPage() {
           onRetry={refreshAll}
           onFinalizar={handleFinalizar}
           onCancelar={handleCancelar}
+          onActualizarFase={handleActualizarFase}
         />
       </div>
 

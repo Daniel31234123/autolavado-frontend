@@ -3,7 +3,7 @@ const RAW_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   "https://backend-autolavado-1.onrender.com";
 
-const BASE_URL = String(RAW_BASE_URL).trim().replace(/\/+$/, "");
+export const BASE_URL = String(RAW_BASE_URL).trim().replace(/\/+$/, "");
 
 /**
  * Almacén en memoria del token y callback de deslogueo

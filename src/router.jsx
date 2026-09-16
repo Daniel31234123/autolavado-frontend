@@ -6,14 +6,18 @@ import { LoginPage } from "./modules/auth/LoginPage.jsx";
 import { NoAutorizadoPage } from "./modules/auth/NoAutorizadoPage.jsx";
 import { TurnosPage } from "./modules/turnos/TurnosPage.jsx";
 import { OperariosPage } from "./modules/operarios/OperariosPage.jsx";
+import { ReservaPage } from "./modules/cliente/ReservaPage.jsx";
+import { TrazabilidadPage } from "./modules/cliente/TrazabilidadPage.jsx";
 import { ProtectedRoute } from "./routes/ProtectedRoute.jsx";
 import { RoleRoute } from "./routes/RoleRoute.jsx";
 
 /**
- * Enrutador principal alineado estrictamente con el Incremento 1:
+ * Enrutador principal:
  * - / -> Landing pública
+ * - /reservar, /reservas -> Agendamiento de Citas (RF-CL-01)
+ * - /seguimiento, /track/:hash, /trazabilidad -> Monitoreo en Tiempo Real (RF-CL-02)
  * - /login -> Login público
- * - /turnos -> Autenticado (ambos roles)
+ * - /turnos -> Autenticado (Administrador y Operario)
  * - /operarios -> Solo Administrador
  * - /no-autorizado -> Pública / Control de acceso
  * - * -> Redirige a /login
@@ -23,6 +27,13 @@ export function AppRoutes() {
     <Routes>
       {/* Página Landing inicial */}
       <Route path="/" element={<LandingPage />} />
+
+      {/* Incremento 2: Módulo del Cliente */}
+      <Route path="/reservar" element={<ReservaPage />} />
+      <Route path="/reservas" element={<ReservaPage />} />
+      <Route path="/seguimiento" element={<TrazabilidadPage />} />
+      <Route path="/trazabilidad" element={<TrazabilidadPage />} />
+      <Route path="/track/:hash" element={<TrazabilidadPage />} />
 
       {/* Ruta pública de autenticación */}
       <Route path="/login" element={<LoginPage />} />

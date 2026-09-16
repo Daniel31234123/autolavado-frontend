@@ -57,6 +57,7 @@ export function TurnosBoard({
   onRetry,
   onFinalizar,
   onCancelar,
+  onActualizarFase,
 }) {
   if (isLoading) {
     return <TurnosBoardSkeleton />;
@@ -68,65 +69,69 @@ export function TurnosBoard({
     return (
       <EmptyState
         title="No hay turnos activos en recepción"
-        description="Utiliza el formulario para registrar el ingreso de un nuevo vehículo."
+        description="Utiliza el formulario para registrar el ingreso de un nuevo vehículo o reserva."
       />
     );
   }
 
   // Agrupar turnos por estado
-  const turnosRecepcion = turnos.filter((t) => {
+  const turnosCola = turnos.filter((t) => {
     const estado = String(t.estado_actual || t.estadoActual || "").toUpperCase();
-    return estado === "RECEPCION" || !estado;
+    return estado === "EN_COLA" || estado === "POR_INICIAR" || estado === "RECEPCION" || !estado;
   });
 
-  const turnosOtros = turnos.filter((t) => {
+  const turnosPatio = turnos.filter((t) => {
     const estado = String(t.estado_actual || t.estadoActual || "").toUpperCase();
-    return estado !== "RECEPCION" && Boolean(estado);
+    return estado !== "EN_COLA" && estado !== "POR_INICIAR" && estado !== "RECEPCION" && Boolean(estado);
   });
 
   return (
     <div className="board">
       <div className="board__column">
         <header className="board__column-header">
-          <span>En Recepción / Espera</span>
-          <span className="board__column-count font-mono">{turnosRecepcion.length}</span>
+          <span>En Recepción / Cola</span>
+          <span className="board__column-count font-mono">{turnosCola.length}</span>
         </header>
 
         <div className="board__column-items">
-          {turnosRecepcion.length === 0 ? (
-            <p className="board__column-empty">No hay turnos en espera</p>
+          {turnosCola.length === 0 ? (
+            <p className="board__column-empty">No hay vehículos en cola</p>
           ) : (
-            turnosRecepcion.map((turno) => (
+            turnosCola.map((turno) => (
               <TurnoCard
                 key={turno.id}
                 turno={turno}
                 onFinalizar={onFinalizar}
                 onCancelar={onCancelar}
+                onActualizarFase={onActualizarFase}
               />
             ))
           )}
         </div>
       </div>
 
-      {turnosOtros.length > 0 && (
-        <div className="board__column">
-          <header className="board__column-header">
-            <span>En Proceso</span>
-            <span className="board__column-count font-mono">{turnosOtros.length}</span>
-          </header>
+      <div className="board__column">
+        <header className="board__column-header">
+          <span>En Patio / Lavado Activo</span>
+          <span className="board__column-count font-mono">{turnosPatio.length}</span>
+        </header>
 
-          <div className="board__column-items">
-            {turnosOtros.map((turno) => (
+        <div className="board__column-items">
+          {turnosPatio.length === 0 ? (
+            <p className="board__column-empty">No hay lavados en curso</p>
+          ) : (
+            turnosPatio.map((turno) => (
               <TurnoCard
                 key={turno.id}
                 turno={turno}
                 onFinalizar={onFinalizar}
                 onCancelar={onCancelar}
+                onActualizarFase={onActualizarFase}
               />
-            ))}
-          </div>
+            ))
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
