@@ -14,7 +14,7 @@ export function BahiasGrid() {
     return (
       <EmptyState
         title="No hay bahías registradas"
-        description="El backend todavía no reporta bahías para monitorear."
+        description="No hay bahias disponibles en este momento."
       />
     );
   }
