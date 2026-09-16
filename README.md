@@ -1,4 +1,4 @@
-# AutoLavado — Frontend
+# AutoLavado Express Sincelejo — Frontend
 
 Panel operativo para la API de autolavado (Bahías, Operarios, Servicios, Turnos), construido en **React + Vite**, con arquitectura modular: cada recurso de la API vive en su propio módulo con sus componentes, hooks y servicio de API aislados.
 
@@ -10,9 +10,10 @@ Panel operativo para la API de autolavado (Bahías, Operarios, Servicios, Turnos
 
 ```bash
 npm install
-cp .env.example .env
 npm run dev
 ```
+
+Configura `VITE_API_BASE_URL` en un archivo `.env` local antes de iniciar la app. Ese archivo está excluido del repositorio.
 
 La app queda disponible en `http://localhost:5173`. Por defecto apunta al backend en `https://backend-autolavado-1.onrender.com` (ajustable en `.env`).
 

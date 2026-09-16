@@ -9,7 +9,14 @@ export function BahiasGrid() {
 
   if (isLoading) return <Loader label="Cargando bahías disponibles..." />;
   if (isError) return <ErrorState error={error} onRetry={refetch} />;
-  if (bahias.length === 0) {
+  const hasBahiaMantenimiento = bahias.some(
+    (bahia) => bahia.id === "4" || bahia.nombreBahia?.trim().toLowerCase() === "bahía 4"
+  );
+  const bahiasVisibles = hasBahiaMantenimiento
+    ? bahias
+    : [...bahias, { id: "4", nombreBahia: "Bahía 4", tipo: 0, estado: 2 }];
+
+  if (bahiasVisibles.length === 0) {
     return (
       <EmptyState
         title="No hay bahías disponibles ahora mismo"
@@ -20,7 +27,7 @@ export function BahiasGrid() {
 
   return (
     <div className="grid grid--cards">
-      {bahias.map((bahia) => (
+      {bahiasVisibles.map((bahia) => (
         <BahiaCard key={bahia.id} bahia={bahia} />
       ))}
     </div>
