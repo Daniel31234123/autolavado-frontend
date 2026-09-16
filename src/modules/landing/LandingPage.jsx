@@ -11,7 +11,7 @@ export function LandingPage() {
     <main className="landing">
       <nav className="landing__nav">
         <Link className="landing__brand" to="/"><span className="landing__brand-mark">AE</span><span>AutoLavado Express Sincelejo</span></Link>
-        <Link className="btn btn--landing" to="/admin">Acceder <span aria-hidden="true">→</span></Link>
+        <Link className="btn btn--landing" to="/login" id="btn-landing-acceder">Acceder <span aria-hidden="true">→</span></Link>
       </nav>
       <section className="landing__hero">
         <div className="landing__hero-copy">

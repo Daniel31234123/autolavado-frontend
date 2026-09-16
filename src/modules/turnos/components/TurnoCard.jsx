@@ -1,52 +1,57 @@
+import React from "react";
 import { StatusBadge } from "../../../shared/components/StatusBadge.jsx";
-import { getEstadoTurnoInfo, getTipoVehiculoLabel } from "../constants/turnoEnums.js";
 
-/**
- * @param {{
- *   turno: import("../api/turnosService.js").Turno,
- *   onFinalizar?: (id: string|number) => void,
- *   onCancelar?: (id: string|number) => void,
- * }} props
- */
 export function TurnoCard({ turno, onFinalizar, onCancelar }) {
-  const estado = getEstadoTurnoInfo(turno.estadoActual);
-  const hora = turno.fechaIngreso
-    ? new Date(turno.fechaIngreso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
+  if (!turno) return null;
+
+  const numeroTurno = turno.numero_turno || turno.numeroTurno || "T-000";
+  const placa = turno.placa || "—";
+  const tipoVehiculo = turno.tipo_vehiculo || turno.tipoVehiculo || "AUTO";
+  const telefono = turno.telefono_cliente || turno.telefonoCliente || "—";
+  const estadoActual = turno.estado_actual || turno.estadoActual || "RECEPCION";
+  const fechaIngreso = turno.fecha_ingreso || turno.fechaIngreso;
+
+  const horaFormateada = fechaIngreso
+    ? new Date(fechaIngreso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
     : null;
 
-  const esActivo = turno.estadoActual === "RECEPCION";
+  const estadoUpper = String(estadoActual).toUpperCase();
+  const esActivo = estadoUpper === "RECEPCION" || estadoUpper === "EN_PROCESO";
 
   return (
-    <article className="card turno-card">
+    <article className="card turno-card" id={`card-turno-${turno.id}`}>
       <header className="turno-card__header">
-        <span className="turno-card__numero">{turno.numeroTurno}</span>
-        <StatusBadge label={estado.label} tone={estado.tone} />
+        <span className="turno-card__numero font-mono">{numeroTurno}</span>
+        <StatusBadge status={estadoActual} />
       </header>
-      <p className="turno-card__placa">{turno.placa}</p>
+
+      <div className="turno-card__placa-box">
+        <span className="font-mono turno-card__placa">{placa}</span>
+        <span className="turno-card__vehiculo-pill">{tipoVehiculo}</span>
+      </div>
+
       <dl className="turno-card__details">
         <div>
-          <dt>Vehículo</dt>
-          <dd>{getTipoVehiculoLabel(turno.tipoVehiculo)}</dd>
-        </div>
-        <div>
           <dt>Teléfono</dt>
-          <dd>{turno.telefonoCliente}</dd>
+          <dd className="font-mono">{telefono}</dd>
         </div>
-        {hora && (
+        {horaFormateada && (
           <div>
             <dt>Ingreso</dt>
-            <dd>{hora}</dd>
+            <dd className="font-mono">{horaFormateada}</dd>
           </div>
         )}
       </dl>
+
       {esActivo && (onFinalizar || onCancelar) && (
         <div className="turno-card__actions">
           {onFinalizar && (
             <button
               type="button"
-              className="btn btn--success"
+              className="btn btn--sm btn--primary"
               onClick={() => onFinalizar(turno.id)}
-              title="Completar servicio y liberar bahía/operario"
+              title="Finalizar turno y liberar bahía/operario"
+              id={`btn-finalizar-turno-${turno.id}`}
             >
               Finalizar
             </button>
@@ -54,9 +59,10 @@ export function TurnoCard({ turno, onFinalizar, onCancelar }) {
           {onCancelar && (
             <button
               type="button"
-              className="btn btn--danger"
+              className="btn btn--sm btn--danger-outline"
               onClick={() => onCancelar(turno.id)}
               title="Cancelar turno y liberar recursos"
+              id={`btn-cancelar-turno-${turno.id}`}
             >
               Cancelar
             </button>
@@ -66,4 +72,3 @@ export function TurnoCard({ turno, onFinalizar, onCancelar }) {
     </article>
   );
 }
-
