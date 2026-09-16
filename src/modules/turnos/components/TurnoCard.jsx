@@ -2,13 +2,19 @@ import { StatusBadge } from "../../../shared/components/StatusBadge.jsx";
 import { getEstadoTurnoInfo, getTipoVehiculoLabel } from "../constants/turnoEnums.js";
 
 /**
- * @param {{ turno: import("../api/turnosService.js").Turno }} props
+ * @param {{
+ *   turno: import("../api/turnosService.js").Turno,
+ *   onFinalizar?: (id: string|number) => void,
+ *   onCancelar?: (id: string|number) => void,
+ * }} props
  */
-export function TurnoCard({ turno }) {
+export function TurnoCard({ turno, onFinalizar, onCancelar }) {
   const estado = getEstadoTurnoInfo(turno.estadoActual);
   const hora = turno.fechaIngreso
     ? new Date(turno.fechaIngreso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
     : null;
+
+  const esActivo = turno.estadoActual === "RECEPCION";
 
   return (
     <article className="card turno-card">
@@ -33,6 +39,31 @@ export function TurnoCard({ turno }) {
           </div>
         )}
       </dl>
+      {esActivo && (onFinalizar || onCancelar) && (
+        <div className="turno-card__actions">
+          {onFinalizar && (
+            <button
+              type="button"
+              className="btn btn--success"
+              onClick={() => onFinalizar(turno.id)}
+              title="Completar servicio y liberar bahía/operario"
+            >
+              Finalizar
+            </button>
+          )}
+          {onCancelar && (
+            <button
+              type="button"
+              className="btn btn--danger"
+              onClick={() => onCancelar(turno.id)}
+              title="Cancelar turno y liberar recursos"
+            >
+              Cancelar
+            </button>
+          )}
+        </div>
+      )}
     </article>
   );
 }
+

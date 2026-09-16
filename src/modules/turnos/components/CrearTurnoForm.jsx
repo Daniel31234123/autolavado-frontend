@@ -53,9 +53,9 @@ export function CrearTurnoForm({ servicios = [], operarios = [], bahias = [], on
       placa: form.placa.toUpperCase(),
       tipo_vehiculo: form.tipoVehiculo,
       telefono_cliente: form.telefonoCliente,
-      id_servicio: form.idServicio,
-      id_operario: form.idOperario,
-      id_bahia: form.idBahia,
+      id_servicio: Number(form.idServicio),
+      id_operario: Number(form.idOperario),
+      id_bahia: Number(form.idBahia),
     };
 
     try {
@@ -131,11 +131,14 @@ export function CrearTurnoForm({ servicios = [], operarios = [], bahias = [], on
             <option value="" disabled>
               Selecciona un operario
             </option>
-            {operarios.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.nombres} {o.apellidos}
-              </option>
-            ))}
+            {operarios.map((o) => {
+              const ocupado = o.estado === "OCUPADO";
+              return (
+                <option key={o.id} value={o.id} disabled={ocupado}>
+                  {o.nombres} {o.apellidos} {ocupado ? "(Ocupado)" : ""}
+                </option>
+              );
+            })}
           </select>
         </label>
         <label className="form__field">

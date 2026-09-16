@@ -5,9 +5,17 @@ import { ESTADO_TURNO, getEstadoTurnoInfo } from "../constants/turnoEnums.js";
 import { TurnoCard } from "./TurnoCard.jsx";
 
 /**
- * @param {{ turnos: import("../api/turnosService.js").Turno[], isLoading: boolean, isError: boolean, error: Error|null, onRetry: () => void }} props
+ * @param {{
+ *   turnos: import("../api/turnosService.js").Turno[],
+ *   isLoading: boolean,
+ *   isError: boolean,
+ *   error: Error|null,
+ *   onRetry: () => void,
+ *   onFinalizar?: (id: string|number) => void,
+ *   onCancelar?: (id: string|number) => void,
+ * }} props
  */
-export function TurnosBoard({ turnos, isLoading, isError, error, onRetry }) {
+export function TurnosBoard({ turnos, isLoading, isError, error, onRetry, onFinalizar, onCancelar }) {
   if (isLoading) return <Loader label="Cargando turnos activos..." />;
   if (isError) return <ErrorState error={error} onRetry={onRetry} />;
   if (turnos.length === 0) {
@@ -18,11 +26,15 @@ export function TurnosBoard({ turnos, isLoading, isError, error, onRetry }) {
   const estadosExtra = [...new Set(turnos.map((t) => t.estadoActual))].filter(
     (estado) => !estadosConocidos.includes(estado)
   );
-  const columnas = [...estadosConocidos, ...estadosExtra].map((estado) => ({
+  // Mostrar las columnas que tienen turnos, priorizando RECEPCION
+  const todasColumnas = [...estadosConocidos, ...estadosExtra].map((estado) => ({
     estado,
     info: getEstadoTurnoInfo(estado),
     items: turnos.filter((t) => t.estadoActual === estado),
   }));
+
+  // Solo mostrar columnas que tengan items o RECEPCION para mantener la vista limpia
+  const columnas = todasColumnas.filter((col) => col.items.length > 0 || col.estado === "RECEPCION");
 
   return (
     <div className="board">
@@ -36,7 +48,14 @@ export function TurnosBoard({ turnos, isLoading, isError, error, onRetry }) {
             {columna.items.length === 0 ? (
               <p className="board__column-empty">Sin turnos</p>
             ) : (
-              columna.items.map((turno) => <TurnoCard key={turno.id} turno={turno} />)
+              columna.items.map((turno) => (
+                <TurnoCard
+                  key={turno.id}
+                  turno={turno}
+                  onFinalizar={onFinalizar}
+                  onCancelar={onCancelar}
+                />
+              ))
             )}
           </div>
         </div>
@@ -44,3 +63,4 @@ export function TurnosBoard({ turnos, isLoading, isError, error, onRetry }) {
     </div>
   );
 }
+
