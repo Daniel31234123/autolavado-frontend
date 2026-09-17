@@ -26,22 +26,30 @@ export function ReservaPage() {
   
   // Estados de carga y feedback
   const [cargando, setCargando] = useState(false);
+  const [cargandoServicios, setCargandoServicios] = useState(true);
+  const [errorServicios, setErrorServicios] = useState("");
   const [cargandoDispo, setCargandoDispo] = useState(false);
   const [error, setError] = useState("");
   const [reservaConfirmada, setReservaConfirmada] = useState(null);
 
   // Cargar catálogo de servicios al montar
   useEffect(() => {
+    setCargandoServicios(true);
+    setErrorServicios("");
     serviciosService
       .getAll()
       .then((data) => {
-        setServicios(data || []);
-        if (data && data.length > 0) {
-          setIdServicio(String(data[0].id));
+        const lista = data || [];
+        setServicios(lista);
+        if (lista.length > 0) {
+          setIdServicio(String(lista[0].id));
         }
       })
       .catch((err) => {
-        console.error("Error al cargar servicios:", err);
+        setErrorServicios(err?.message || "No se pudieron cargar los servicios.");
+      })
+      .finally(() => {
+        setCargandoServicios(false);
       });
   }, []);
 
@@ -571,6 +579,31 @@ export function ReservaPage() {
                 <h3 style={{ fontSize: "1.05rem", marginBottom: "14px", color: "var(--color-ink)" }}>
                   2. Selecciona el Tipo de Servicio
                 </h3>
+
+                {cargandoServicios && (
+                  <p style={{ color: "#64748b", fontSize: "0.9rem" }}>Cargando servicios...</p>
+                )}
+
+                {!cargandoServicios && errorServicios && (
+                  <div
+                    style={{
+                      background: "#fef2f2",
+                      border: "1px solid #f87171",
+                      color: "#991b1b",
+                      padding: "12px 16px",
+                      borderRadius: "8px",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    No se pudieron cargar los servicios: {errorServicios}
+                  </div>
+                )}
+
+                {!cargandoServicios && !errorServicios && servicios.length === 0 && (
+                  <p style={{ color: "#64748b", fontSize: "0.9rem" }}>
+                    No hay servicios disponibles por el momento.
+                  </p>
+                )}
 
                 <div
                   style={{
