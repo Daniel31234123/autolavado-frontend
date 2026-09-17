@@ -1,13 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { turnosApi } from "../../../api/turnosApi.js";
+import { vehiculosApi } from "../../../api/vehiculosApi.js";
 
 const initialForm = {
   placa: "",
   tipo_vehiculo: "AUTO",
   telefono_cliente: "",
   id_servicio: "",
-  id_operario: "",
-  id_bahia: "",
 };
 
 const TIPOS_VEHICULO = [
@@ -16,20 +15,109 @@ const TIPOS_VEHICULO = [
   { value: "MOTO", label: "Motocicleta" },
 ];
 
-export function CrearTurnoForm({
-  servicios = [],
-  operarios = [],
-  bahias = [],
-  onCreated,
-}) {
+export function CrearTurnoForm({ servicios = [], onCreated, onClose }) {
   const [form, setForm] = useState(initialForm);
+  const [sugerenciasPlaca, setSugerenciasPlaca] = useState([]);
+  const [vehiculoExistente, setVehiculoExistente] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [vehiculosRegistrados, setVehiculosRegistrados] = useState([]);
+
+  // Lista de placas ya registradas para autocompletar el ingreso (RF-01, RN-03)
+  useEffect(() => {
+    let activo = true;
+    vehiculosApi
+      .obtenerTodos()
+      .then((data) => {
+        if (activo) setVehiculosRegistrados(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
+
+  // Al elegir una placa de la lista se completan tipo de vehículo y teléfono
+  const seleccionarVehiculoRegistrado = (placaSeleccionada) => {
+    setValidationError(null);
+    setApiError(null);
+
+    const vehiculo = vehiculosRegistrados.find((v) => v.placa === placaSeleccionada);
+    if (!vehiculo) {
+      setForm((prev) => ({ ...prev, placa: "" }));
+      setVehiculoExistente(false);
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      placa: vehiculo.placa,
+      tipo_vehiculo: vehiculo.tipo_vehiculo || vehiculo.tipoVehiculo || "AUTO",
+      telefono_cliente: vehiculo.telefono_cliente || vehiculo.telefonoCliente || "",
+    }));
+    setVehiculoExistente(true);
+    setSugerenciasPlaca([]);
+  };
+
+  // RF-01: Autocompletado reactivo de placa
+  const handlePlacaChange = async (e) => {
+    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+    updateField("placa", val);
+    setValidationError(null);
+    setApiError(null);
+
+    if (val.length >= 3) {
+      try {
+        const sugerencias = await vehiculosApi.buscar(val);
+        setSugerenciasPlaca(sugerencias || []);
+
+        const exacto = sugerencias?.find((s) => s.placa.toUpperCase() === val);
+        if (exacto) {
+          applyVehiculo(exacto);
+        } else if (val.length === 6) {
+          // RF-01: consulta directa del vehículo por placa completa
+          try {
+            applyVehiculo(await vehiculosApi.obtenerPorPlaca(val));
+          } catch {
+            setVehiculoExistente(false);
+          }
+        } else {
+          setVehiculoExistente(false);
+        }
+      } catch {
+        setSugerenciasPlaca([]);
+      }
+    } else {
+      setSugerenciasPlaca([]);
+      setVehiculoExistente(false);
+    }
+  };
+
+  function applyVehiculo(vehiculo) {
+    if (!vehiculo || !vehiculo.placa) {
+      setVehiculoExistente(false);
+      return;
+    }
+    updateField("tipo_vehiculo", vehiculo.tipo_vehiculo || vehiculo.tipoVehiculo || "AUTO");
+    updateField("telefono_cliente", vehiculo.telefono_cliente || vehiculo.telefonoCliente || "");
+    setVehiculoExistente(true);
+  }
+
+  const seleccionarSugerencia = (sug) => {
+    setForm((prev) => ({
+      ...prev,
+      placa: sug.placa,
+      tipo_vehiculo: sug.tipo_vehiculo || sug.tipoVehiculo || "AUTO",
+      telefono_cliente: sug.telefono_cliente || sug.telefonoCliente || "",
+    }));
+    setVehiculoExistente(true);
+    setSugerenciasPlaca([]);
+  };
 
   function validate() {
     const placaLimpia = form.placa.trim().replace(/\s+/g, "").toUpperCase();
@@ -42,28 +130,20 @@ export function CrearTurnoForm({
       return "La placa debe ser alfanumérica sin espacios (5 o 6 caracteres, ej: ABC123).";
     }
 
-    if (!form.tipo_vehiculo) {
-      return "Debes seleccionar el tipo de vehículo.";
-    }
-
     if (!form.id_servicio) {
       return "Debes seleccionar un tipo de servicio.";
     }
 
-    if (!form.id_operario) {
-      return "Debes seleccionar un operario asignado.";
-    }
-
-    if (!form.id_bahia) {
-      return "Debes seleccionar una bahía libre.";
-    }
-
-    if (!form.telefono_cliente.trim()) {
-      return "El teléfono del cliente es obligatorio (10 dígitos).";
-    }
-
-    if (!/^[0-9]{10}$/.test(form.telefono_cliente.trim())) {
-      return "El teléfono debe contener exactamente 10 dígitos numéricos.";
+    if (!vehiculoExistente) {
+      if (!form.tipo_vehiculo) {
+        return "Debes seleccionar el tipo de vehículo.";
+      }
+      if (!form.telefono_cliente.trim()) {
+        return "El teléfono del cliente es obligatorio (10 dígitos).";
+      }
+      if (!/^[0-9]{10}$/.test(form.telefono_cliente.trim())) {
+        return "El teléfono debe contener exactamente 10 dígitos numéricos.";
+      }
     }
 
     return null;
@@ -87,47 +167,58 @@ export function CrearTurnoForm({
     const payload = {
       placa: placaFinal,
       tipo_vehiculo: form.tipo_vehiculo,
-      telefono_cliente: form.telefono_cliente.trim(),
+      telefono_cliente: form.telefono_cliente.trim() || undefined,
       id_servicio: Number(form.id_servicio),
-      id_operario: Number(form.id_operario),
-      id_bahia: Number(form.id_bahia),
     };
 
-    // Metadata para el comprobante
     const servicioObj = servicios.find((s) => Number(s.id) === Number(form.id_servicio));
-    const operarioObj = operarios.find((o) => Number(o.id) === Number(form.id_operario));
-    const bahiaObj = bahias.find((b) => Number(b.id) === Number(form.id_bahia));
-
-    const metadataForm = {
-      placa: placaFinal,
-      tipo_vehiculo: form.tipo_vehiculo,
-      telefono_cliente: form.telefono_cliente.trim(),
-      nombreServicio: servicioObj ? servicioObj.nombre : `Servicio #${form.id_servicio}`,
-      nombreOperario: operarioObj ? `${operarioObj.nombres} ${operarioObj.apellidos}` : `Operario #${form.id_operario}`,
-      nombreBahia: bahiaObj ? (bahiaObj.numero ? `Bahía ${bahiaObj.numero}` : `Bahía #${bahiaObj.id}`) : `Bahía #${form.id_bahia}`,
-    };
 
     try {
-      const response = await turnosApi.crear(payload);
+      const resultado = await turnosApi.crear(payload);
+
+      // Limpiar formulario tras éxito
       setForm(initialForm);
-      onCreated?.(response, metadataForm);
+      setVehiculoExistente(false);
+      setSugerenciasPlaca([]);
+
+      if (onCreated) {
+        onCreated(resultado, {
+          ...payload,
+          nombreServicio: servicioObj?.nombre || "Servicio",
+          tarifaBase: servicioObj?.precioBase ?? servicioObj?.precio_base ?? 0,
+        });
+      }
     } catch (err) {
-      // Muestra el error del backend sin perder los datos del formulario (RFF-004)
-      setApiError(err.message || "Error al registrar el turno en el servidor.");
+      setApiError(err.message || "Error al registrar el turno.");
     } finally {
       setIsLoading(false);
     }
   }
 
   return (
-    <form className="form form--card" onSubmit={handleSubmit} id="form-crear-turno">
-      <div className="form__card-header">
-        <h2>Registrar Vehículo / Turno</h2>
-        <p>Ingresa los datos del cliente para asignarle un turno consecutivo.</p>
-      </div>
+    <form className="form-panel" onSubmit={handleSubmit} noValidate id="form-crear-turno">
+      <header className="form-panel__header">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+          <div>
+            <h2>Registrar Ingreso de Vehículo</h2>
+            <p>Genera un turno con asignación automática de operario (RF-01, RF-02).</p>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              className="modal__close-btn"
+              onClick={onClose}
+              disabled={isLoading}
+              aria-label="Cerrar"
+            >
+              &times;
+            </button>
+          )}
+        </div>
+      </header>
 
       {validationError && (
-        <div className="alert alert--danger" role="alert" id="error-validacion-turno">
+        <div className="alert alert--danger" role="alert" style={{ marginBottom: "16px" }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -138,7 +229,7 @@ export function CrearTurnoForm({
       )}
 
       {apiError && (
-        <div className="alert alert--danger" role="alert" id="error-backend-turno">
+        <div className="alert alert--danger" role="alert" style={{ marginBottom: "16px" }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -148,142 +239,192 @@ export function CrearTurnoForm({
         </div>
       )}
 
-      <div className="form__grid-2">
-        <label className="form__field">
-          <span>Placa del Vehículo *</span>
-          <input
-            type="text"
-            required
-            maxLength={6}
-            placeholder="Ej. ABC123"
-            value={form.placa}
-            onChange={(e) => updateField("placa", e.target.value.toUpperCase())}
-            disabled={isLoading}
-            id="input-placa"
-            className="font-mono input--placa"
-          />
-          <small className="field__hint">6 caracteres alfanuméricos</small>
+      <div className="form-group">
+        <label htmlFor="select-vehiculo-registrado" className="form-label">
+          Vehículo registrado
         </label>
-
-        <label className="form__field">
-          <span>Tipo de Vehículo *</span>
-          <select
-            required
-            value={form.tipo_vehiculo}
-            onChange={(e) => updateField("tipo_vehiculo", e.target.value)}
-            disabled={isLoading}
-            id="select-tipo-vehiculo"
-          >
-            {TIPOS_VEHICULO.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <label className="form__field">
-        <span>Teléfono del Cliente *</span>
-        <input
-          type="tel"
-          required
-          maxLength={10}
-          inputMode="numeric"
-          placeholder="Ej. 3001234567"
-          value={form.telefono_cliente}
-          onChange={(e) => updateField("telefono_cliente", e.target.value)}
-          disabled={isLoading}
-          id="input-telefono-cliente"
-        />
-        <small className="field__hint">10 dígitos para notificaciones de turno</small>
-      </label>
-
-      <label className="form__field">
-        <span>Tipo de Servicio *</span>
         <select
-          required
-          value={form.id_servicio}
-          onChange={(e) => updateField("id_servicio", e.target.value)}
+          id="select-vehiculo-registrado"
+          className="form-select"
+          value={form.placa}
+          onChange={(e) => seleccionarVehiculoRegistrado(e.target.value)}
           disabled={isLoading}
-          id="select-servicio"
         >
-          <option value="" disabled>
-            — Seleccionar servicio del catálogo —
-          </option>
-          {servicios.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.nombre} {s.precio ? `($${Number(s.precio).toLocaleString("es-CO")})` : ""}
+          <option value="">-- Seleccionar de la lista ({vehiculosRegistrados.length}) --</option>
+          {vehiculosRegistrados.map((v) => (
+            <option key={v.placa} value={v.placa}>
+              {v.placa} · {v.tipo_vehiculo || v.tipoVehiculo} · {v.telefono_cliente || v.telefonoCliente}
             </option>
           ))}
         </select>
-      </label>
-
-      <div className="form__grid-2">
-        <label className="form__field">
-          <span>Operario Asignado *</span>
-          <select
-            required
-            value={form.id_operario}
-            onChange={(e) => updateField("id_operario", e.target.value)}
-            disabled={isLoading}
-            id="select-operario"
-          >
-            <option value="" disabled>
-              — Seleccionar operario —
-            </option>
-            {operarios.map((o) => {
-              const isOcupado = String(o.estado).toUpperCase() === "OCUPADO";
-              return (
-                <option key={o.id} value={o.id} disabled={isOcupado}>
-                  {o.nombres} {o.apellidos} {isOcupado ? "(Ocupado)" : "(Disponible)"}
-                </option>
-              );
-            })}
-          </select>
-        </label>
-
-        <label className="form__field">
-          <span>Bahía Asignada *</span>
-          <select
-            required
-            value={form.id_bahia}
-            onChange={(e) => updateField("id_bahia", e.target.value)}
-            disabled={isLoading}
-            id="select-bahia"
-          >
-            <option value="" disabled>
-              — Seleccionar bahía libre —
-            </option>
-            {bahias.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.numero ? `Bahía ${b.numero}` : `Bahía #${b.id}`} {b.tipo ? `(${b.tipo})` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+        <span style={{ fontSize: "0.72rem", color: "#667582" }}>
+          Al elegir una placa se completan automáticamente el tipo de vehículo y el teléfono.
+        </span>
       </div>
 
-      <button
-        type="submit"
-        className="btn btn--primary btn--full btn--lg"
-        disabled={isLoading}
-        id="btn-generar-turno"
-      >
-        {isLoading ? (
-          <span>Generando turno...</span>
-        ) : (
-          <>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="12" y1="18" x2="12" y2="12"></line>
-              <line x1="9" y1="15" x2="15" y2="15"></line>
-            </svg>
-            <span>Generar Turno de Ingreso</span>
-          </>
+      <div className="form-group" style={{ position: "relative" }}>
+        <label htmlFor="input-placa" className="form-label">
+          Placa del Vehículo *
+        </label>
+        <input
+          id="input-placa"
+          type="text"
+          className="form-input font-mono"
+          placeholder="Ej: ABC123"
+          maxLength={6}
+          value={form.placa}
+          onChange={handlePlacaChange}
+          disabled={isLoading}
+          autoComplete="off"
+          required
+        />
+        {vehiculoExistente && (
+          <span style={{ fontSize: "0.75rem", color: "#16a34a", fontWeight: 700, marginTop: "4px", display: "block" }}>
+            Vehículo registrado previamente (datos autocompletados)
+          </span>
         )}
-      </button>
+
+        {/* Menú de sugerencias para autocompletado */}
+        {sugerenciasPlaca.length > 0 && !vehiculoExistente && (
+          <div
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              right: 0,
+              zIndex: 20,
+              background: "#fff",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+              maxHeight: "160px",
+              overflowY: "auto",
+            }}
+          >
+            {sugerenciasPlaca.map((sug) => (
+              <button
+                key={sug.placa}
+                type="button"
+                onClick={() => seleccionarSugerencia(sug)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "8px 12px",
+                  border: "none",
+                  borderBottom: "1px solid #f1f5f9",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                }}
+              >
+                <strong className="font-mono">{sug.placa}</strong>
+                <span style={{ color: "#64748b", marginLeft: "8px" }}>
+                  ({sug.tipo_vehiculo || sug.tipoVehiculo || "Auto"}) -{" "}
+                  {sug.telefono_cliente || sug.telefonoCliente}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="select-tipo-vehiculo" className="form-label">
+          Tipo de Vehículo *
+        </label>
+        <select
+          id="select-tipo-vehiculo"
+          className="form-select"
+          value={form.tipo_vehiculo}
+          onChange={(e) => updateField("tipo_vehiculo", e.target.value)}
+          disabled={isLoading}
+          required
+        >
+          {TIPOS_VEHICULO.map((tipo) => (
+            <option key={tipo.value} value={tipo.value}>
+              {tipo.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="input-telefono" className="form-label">
+          Teléfono de Contacto {!vehiculoExistente && "*"}
+        </label>
+        <input
+          id="input-telefono"
+          type="tel"
+          className="form-input font-mono"
+          placeholder="Ej: 3001234567"
+          maxLength={10}
+          value={form.telefono_cliente}
+          onChange={(e) => updateField("telefono_cliente", e.target.value.replace(/[^0-9]/g, ""))}
+          disabled={isLoading}
+          required={!vehiculoExistente}
+        />
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="select-servicio" className="form-label">
+          Servicio a Realizar *
+        </label>
+        <select
+          id="select-servicio"
+          className="form-select"
+          value={form.id_servicio}
+          onChange={(e) => updateField("id_servicio", e.target.value)}
+          disabled={isLoading}
+          required
+        >
+          <option value="">-- Seleccione un servicio --</option>
+          {servicios.map((s) => (
+            <option key={s.id} value={s.id}>
+              {String(s.nombre).replace(/_/g, " ")} — $
+              {Number(s.precioBase ?? s.precio_base ?? 0).toLocaleString("es-CO")} ·{" "}
+              {s.tiempoEstimadoMin ?? s.tiempo_estimado_min ?? 0} min
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div
+        style={{
+          background: "#f0fdf4",
+          border: "1px solid #bbf7d0",
+          borderRadius: "8px",
+          padding: "10px 12px",
+          fontSize: "0.8rem",
+          color: "#166534",
+          marginBottom: "16px",
+        }}
+      >
+ <strong>Asignación automática (RF-02):</strong> el sistema asignará imparcialmente un operario libre o encolará el turno según orden de llegada.
+      </div>
+
+      <div style={{ display: "flex", gap: "10px" }}>
+        {onClose && (
+          <button
+            type="button"
+            className="btn btn--secondary"
+            onClick={onClose}
+            disabled={isLoading}
+            style={{ flex: "0 0 auto", minHeight: "48px", padding: "10px 20px" }}
+          >
+            Cancelar
+          </button>
+        )}
+        <button
+          type="submit"
+          className="btn btn--primary"
+          disabled={isLoading}
+          id="btn-crear-turno-submit"
+          style={{ flex: 1, minHeight: "48px" }}
+        >
+          {isLoading ? "Generando Turno..." : "Registrar e Ingresar"}
+        </button>
+      </div>
     </form>
   );
 }

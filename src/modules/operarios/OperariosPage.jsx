@@ -20,6 +20,7 @@ export function OperariosPage() {
   const [editingOperario, setEditingOperario] = useState(null);
   const [deactivatingOperario, setDeactivatingOperario] = useState(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
+  const [updatingEstadoId, setUpdatingEstadoId] = useState(null);
 
   // Mensaje flash de confirmación
   const [toastMessage, setToastMessage] = useState(null);
@@ -29,18 +30,24 @@ export function OperariosPage() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const fetchOperarios = useCallback(async () => {
-    setIsLoading(true);
-    setIsError(false);
-    setError(null);
+  const fetchOperarios = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setIsLoading(true);
+      setIsError(false);
+      setError(null);
+    }
     try {
       const data = await operariosApi.obtenerTodos();
       setOperarios(Array.isArray(data) ? data : []);
+      setIsError(false);
+      setError(null);
     } catch (err) {
-      setIsError(true);
-      setError(err);
+      if (!silent) {
+        setIsError(true);
+        setError(err);
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, []);
 
@@ -49,12 +56,12 @@ export function OperariosPage() {
   }, [fetchOperarios]);
 
   const handleCreated = () => {
-    fetchOperarios();
+    fetchOperarios({ silent: true });
     showToast("Operario registrado exitosamente con estado Activo.");
   };
 
   const handleUpdated = () => {
-    fetchOperarios();
+    fetchOperarios({ silent: true });
     showToast("Datos del operario actualizados con éxito.");
   };
 
@@ -64,7 +71,7 @@ export function OperariosPage() {
     setIsDeactivating(true);
     try {
       await operariosApi.desactivar(deactivatingOperario.id);
-      await fetchOperarios();
+      await fetchOperarios({ silent: true });
       showToast(
         `La cuenta de ${deactivatingOperario.nombres} ${deactivatingOperario.apellidos} fue desactivada.`
       );
@@ -76,13 +83,27 @@ export function OperariosPage() {
     }
   };
 
-  // Helper para normalizar el estado del operario
+  // Helper para normalizar el estado del operario (backend: DISPONIBLE | OCUPADO | INACTIVO)
   const getOperarioEstadoKey = (op) => {
     if (!op || op.activo === false) return "INACTIVO";
     const est = String(op.estado || "").toUpperCase();
     if (est === "INACTIVO") return "INACTIVO";
     if (est === "OCUPADO") return "OCUPADO";
-    return "ACTIVO";
+    return "DISPONIBLE";
+  };
+
+  // RF-03: Gestión de disponibilidad del personal
+  const handleCambiarEstado = async (operario, nuevoEstado) => {
+    setUpdatingEstadoId(operario.id);
+    try {
+      await operariosApi.cambiarEstado(operario.id, nuevoEstado);
+      await fetchOperarios({ silent: true });
+      showToast(`Estado de ${operario.nombres} actualizado a ${nuevoEstado}.`);
+    } catch (err) {
+      alert(err.message || "Error al cambiar el estado del operario.");
+    } finally {
+      setUpdatingEstadoId(null);
+    }
   };
 
   // Filtrado de operarios
@@ -104,7 +125,7 @@ export function OperariosPage() {
     return true;
   });
 
-  const conteoActivos = operarios.filter((op) => getOperarioEstadoKey(op) === "ACTIVO").length;
+  const conteoDisponibles = operarios.filter((op) => getOperarioEstadoKey(op) === "DISPONIBLE").length;
   const conteoOcupados = operarios.filter((op) => getOperarioEstadoKey(op) === "OCUPADO").length;
   const conteoInactivos = operarios.filter((op) => getOperarioEstadoKey(op) === "INACTIVO").length;
 
@@ -150,10 +171,10 @@ export function OperariosPage() {
           </button>
           <button
             type="button"
-            className={`filter-pill ${filterState === "ACTIVO" ? "filter-pill--active" : ""}`}
-            onClick={() => setFilterState("ACTIVO")}
+            className={`filter-pill ${filterState === "DISPONIBLE" ? "filter-pill--active" : ""}`}
+            onClick={() => setFilterState("DISPONIBLE")}
           >
-            Activos <span className="filter-pill__count">{conteoActivos}</span>
+            Disponibles <span className="filter-pill__count">{conteoDisponibles}</span>
           </button>
           <button
             type="button"
@@ -187,9 +208,11 @@ export function OperariosPage() {
         isLoading={isLoading}
         isError={isError}
         error={error}
-        onRetry={fetchOperarios}
+        onRetry={() => fetchOperarios()}
         onEdit={(op) => setEditingOperario(op)}
         onDesactivar={(op) => setDeactivatingOperario(op)}
+        onCambiarEstado={handleCambiarEstado}
+        updatingEstadoId={updatingEstadoId}
       />
 
       {/* Modal de Crear Operario (RFF-007) */}

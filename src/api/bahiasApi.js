@@ -3,9 +3,8 @@ import { http } from "./httpClient.js";
 /**
  * @typedef {Object} Bahia
  * @property {number} id
- * @property {string} numero
- * @property {string} tipo
- * @property {'Disponible' | 'Ocupada' | 'Mantenimiento' | 'DISPONIBLE' | 'OCUPADA' | 'MANTENIMIENTO'} estado
+ * @property {string} nombre
+ * @property {'DISPONIBLE' | 'OCUPADA' | 'MANTENIMIENTO'} estado
  */
 
 /**
@@ -23,4 +22,28 @@ export const bahiasApi = {
    * @returns {Promise<Bahia[]>}
    */
   obtenerDisponibles: () => http.get("/api/v1/bahias/disponibles"),
+
+  /**
+   * Crea una nueva bahía
+   * @param {{nombre: string}} payload
+   * @returns {Promise<Bahia>}
+   */
+  crear: (payload) => http.post("/api/v1/bahias", payload),
+
+  /**
+   * Edita el nombre de una bahía
+   * @param {number} id
+   * @param {{nombre: string}} payload
+   * @returns {Promise<Bahia>}
+   */
+  editar: (id, payload) => http.put(`/api/v1/bahias/${id}`, payload),
+
+  /**
+   * Cambia el estado de una bahía (DISPONIBLE | OCUPADA | MANTENIMIENTO)
+   * @param {number} id
+   * @param {string} estado
+   * @returns {Promise<Bahia>}
+   */
+  cambiarEstado: (id, estado) =>
+    http.patch(`/api/v1/bahias/${id}/estado`, { estado }),
 };

@@ -2,6 +2,12 @@ import { http } from "./httpClient.js";
 
 export const vehiculosApi = {
   /**
+   * Obtiene el listado completo de vehículos registrados (autocompletado de ingreso)
+   * @returns {Promise<any[]>}
+   */
+  obtenerTodos: () => http.get("/api/v1/vehiculos"),
+
+  /**
    * Obtiene la información registrada de un vehículo por su placa
    * @param {string} placa
    * @returns {Promise<any>}

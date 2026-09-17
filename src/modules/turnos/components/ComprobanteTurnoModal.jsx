@@ -2,10 +2,9 @@ import React, { useEffect, useState } from "react";
 import QRCode from "qrcode";
 
 /**
- * Visualización del Comprobante y Número de Turno Consecutivo (RFF-005 / RF-002).
- * Muestra claramente el número devuelto por el backend (T-001, T-002, etc.),
- * los recursos asignados y el código QR de seguimiento.
- * Es visible sin scroll en escritorio y el número no es editable.
+ * Visualización del Comprobante y Número de Turno Consecutivo (RF-01, RF-02).
+ * Muestra el número devuelto por el backend (ej: T-001, T-002),
+ * los datos del vehículo, servicio y el código QR de seguimiento en tiempo real.
  */
 export function ComprobanteTurnoModal({ turno, datosFormulario, onClose }) {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
@@ -14,7 +13,14 @@ export function ComprobanteTurnoModal({ turno, datosFormulario, onClose }) {
     if (!turno) return;
 
     // Si el backend entrega qr_url o hash_consulta, generamos el QR
-    const qrData = turno.qr_url || turno.qrUrl || turno.hash_consulta || turno.hashConsulta || turno.numero_turno || turno.numeroTurno;
+    const qrData =
+      turno.qr_url ||
+      turno.qrUrl ||
+      turno.hash_consulta ||
+      turno.hashConsulta ||
+      turno.numero_turno ||
+      turno.numeroTurno;
+
     if (qrData) {
       QRCode.toDataURL(qrData, {
         width: 160,
@@ -32,6 +38,7 @@ export function ComprobanteTurnoModal({ turno, datosFormulario, onClose }) {
   if (!turno) return null;
 
   const numeroTurno = turno.numero_turno || turno.numeroTurno || "T-000";
+  const estado = turno.estado || turno.estado_actual || turno.estadoActual || "EN_COLA";
   const fechaIngresoRaw = turno.fecha_ingreso || turno.fechaIngreso;
   const fechaFormateada = fechaIngresoRaw
     ? new Date(fechaIngresoRaw).toLocaleTimeString("es-CO", {
@@ -41,6 +48,8 @@ export function ComprobanteTurnoModal({ turno, datosFormulario, onClose }) {
         hour12: true,
       })
     : new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+
+  const trackingHash = turno.hash_consulta || turno.hashConsulta || turno.placa;
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="comprobante-title">
@@ -59,7 +68,7 @@ export function ComprobanteTurnoModal({ turno, datosFormulario, onClose }) {
             <div className="ticket__number-display" id="turno-numero-consecutivo">
               {numeroTurno}
             </div>
-            <span className="ticket__status-pill">RECEPCIÓN</span>
+            <span className="ticket__status-pill">{estado}</span>
           </div>
 
           {/* Resumen de recursos y vehículo */}
@@ -81,53 +90,52 @@ export function ComprobanteTurnoModal({ turno, datosFormulario, onClose }) {
             <div className="ticket__detail-item">
               <span className="detail__label">Servicio:</span>
               <strong className="detail__value">
-                {datosFormulario?.nombreServicio || "Lavado"}
+                {datosFormulario?.nombreServicio || "Lavado General"}
               </strong>
             </div>
 
             <div className="ticket__detail-item">
-              <span className="detail__label">Bahía:</span>
-              <strong className="detail__value">
-                {datosFormulario?.nombreBahia || "Bahía asignada"}
-              </strong>
-            </div>
-
-            <div className="ticket__detail-item">
-              <span className="detail__label">Operario:</span>
-              <strong className="detail__value">
-                {datosFormulario?.nombreOperario || "Operario asignado"}
-              </strong>
-            </div>
-
-            <div className="ticket__detail-item">
-              <span className="detail__label">Hora ingreso:</span>
+              <span className="detail__label">Hora Ingreso:</span>
               <strong className="detail__value font-mono">{fechaFormateada}</strong>
             </div>
           </div>
 
-          {/* Código QR de consulta para el cliente */}
-          {qrCodeUrl && (
-            <div className="ticket__qr-box">
+          {/* QR de seguimiento para el cliente */}
+          <div className="ticket__qr-box">
+            {qrCodeUrl ? (
               <img
                 src={qrCodeUrl}
-                alt={`Código QR para el turno ${numeroTurno}`}
-                className="ticket__qr-img"
+                alt="Código QR para seguimiento de turno en vivo"
+                className="ticket__qr-image"
+                id="qr-seguimiento-turno"
               />
-              <p className="ticket__qr-hint">
-                Escanea este código para consultar el estado en vivo de tu vehículo.
-              </p>
-            </div>
-          )}
+            ) : (
+              <div className="ticket__qr-placeholder">Cargando QR...</div>
+            )}
+            <p className="ticket__qr-hint">Escanea para monitorear el avance de tu lavado en tiempo real.</p>
+          </div>
 
-          {/* Acciones */}
+          {/* Botones de acción */}
           <div className="ticket__actions">
+            {trackingHash && (
+              <a
+                href={`/track/${trackingHash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn--sm btn--primary"
+                style={{ textDecoration: "none", textAlign: "center", display: "grid", placeItems: "center" }}
+              >
+                Abrir seguimiento en vivo
+              </a>
+            )}
             <button
               type="button"
-              className="btn btn--primary btn--full"
+              className="btn btn--sm btn--outline"
               onClick={onClose}
               id="btn-cerrar-comprobante"
+              style={{ minHeight: "44px" }}
             >
-              Registrar otro vehículo
+              Cerrar Comprobante
             </button>
           </div>
         </div>

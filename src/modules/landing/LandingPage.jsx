@@ -16,13 +16,13 @@ export function LandingPage() {
         </Link>
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
           <Link className="btn btn--outline" to="/seguimiento" id="btn-landing-track">
-            🔍 Rastrear Vehículo
+            Rastrear vehículo
           </Link>
           <Link className="btn btn--primary" to="/reservar" id="btn-landing-reservar">
-            📅 Reservar Turno
+            Reservar turno
           </Link>
           <Link className="btn btn--landing" to="/login" id="btn-landing-acceder">
-            Staff <span aria-hidden="true">→</span>
+            Staff
           </Link>
         </div>
       </nav>
@@ -47,7 +47,7 @@ export function LandingPage() {
                 boxShadow: "0 4px 14px rgba(255, 105, 77, 0.35)",
               }}
             >
-              📅 Reservar Cita de Lavado
+              Reservar cita de lavado
             </Link>
             <Link
               to="/seguimiento"
@@ -62,14 +62,17 @@ export function LandingPage() {
                 fontSize: "1rem",
               }}
             >
-              🔍 Consultar Estado de Mi Auto
+              Consultar estado de mi auto
             </Link>
           </div>
         </div>
         <div className="landing__hero-art" aria-label="Ilustración de una operación de autolavado" role="img">
           <div className="landing__art-sun" /><div className="landing__art-road" />
           <div className="landing__art-card">
-            <span className="landing__art-label" style={{ background: "#dcfce7", color: "#15803d" }}>EN VIVO 🔴</span>
+            <span className="landing__art-label" style={{ background: "#dcfce7", color: "#15803d" }}>
+              EN VIVO
+              <span style={{ display: "inline-block", width: "7px", height: "7px", borderRadius: "50%", background: "#ef4444", marginLeft: "6px", verticalAlign: "middle" }} aria-hidden="true" />
+            </span>
             <strong>Fase: Enjabonado</strong>
             <span className="landing__art-line" />
             <small>Placa QHT123 · ~30 min</small>

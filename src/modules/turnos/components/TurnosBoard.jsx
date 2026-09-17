@@ -51,6 +51,8 @@ function TurnosBoardSkeleton() {
 
 export function TurnosBoard({
   turnos = [],
+  enAtencion,
+  enCola,
   isLoading = false,
   isError = false,
   error = null,
@@ -58,6 +60,9 @@ export function TurnosBoard({
   onFinalizar,
   onCancelar,
   onActualizarFase,
+  onAsignarBahia,
+  bahias = [],
+  servicios = [],
 }) {
   if (isLoading) {
     return <TurnosBoardSkeleton />;
@@ -65,7 +70,24 @@ export function TurnosBoard({
 
   if (isError) return <ErrorState error={error} onRetry={onRetry} />;
 
-  if (!turnos || turnos.length === 0) {
+  const usaTablero = Array.isArray(enAtencion) || Array.isArray(enCola);
+
+  // RF-05: cuando el backend entrega el tablero, se usan sus columnas exactas.
+  const turnosCola = usaTablero
+    ? enCola ?? []
+    : turnos.filter((t) => {
+        const estado = String(t.estado_actual || t.estadoActual || "").toUpperCase();
+        return estado === "EN_COLA" || estado === "POR_INICIAR" || estado === "RECEPCION" || !estado;
+      });
+
+  const turnosPatio = usaTablero
+    ? enAtencion ?? []
+    : turnos.filter((t) => {
+        const estado = String(t.estado_actual || t.estadoActual || "").toUpperCase();
+        return estado !== "EN_COLA" && estado !== "POR_INICIAR" && estado !== "RECEPCION" && Boolean(estado);
+      });
+
+  if (!usaTablero && (!turnos || turnos.length === 0)) {
     return (
       <EmptyState
         title="No hay turnos activos en recepción"
@@ -74,16 +96,18 @@ export function TurnosBoard({
     );
   }
 
-  // Agrupar turnos por estado
-  const turnosCola = turnos.filter((t) => {
-    const estado = String(t.estado_actual || t.estadoActual || "").toUpperCase();
-    return estado === "EN_COLA" || estado === "POR_INICIAR" || estado === "RECEPCION" || !estado;
-  });
-
-  const turnosPatio = turnos.filter((t) => {
-    const estado = String(t.estado_actual || t.estadoActual || "").toUpperCase();
-    return estado !== "EN_COLA" && estado !== "POR_INICIAR" && estado !== "RECEPCION" && Boolean(estado);
-  });
+  const renderCard = (turno) => (
+    <TurnoCard
+      key={turno.id}
+      turno={turno}
+      onFinalizar={onFinalizar}
+      onCancelar={onCancelar}
+      onActualizarFase={onActualizarFase}
+      onAsignarBahia={onAsignarBahia}
+      bahias={bahias}
+      servicios={servicios}
+    />
+  );
 
   return (
     <div className="board">
@@ -97,15 +121,7 @@ export function TurnosBoard({
           {turnosCola.length === 0 ? (
             <p className="board__column-empty">No hay vehículos en cola</p>
           ) : (
-            turnosCola.map((turno) => (
-              <TurnoCard
-                key={turno.id}
-                turno={turno}
-                onFinalizar={onFinalizar}
-                onCancelar={onCancelar}
-                onActualizarFase={onActualizarFase}
-              />
-            ))
+            turnosCola.map(renderCard)
           )}
         </div>
       </div>
@@ -120,15 +136,7 @@ export function TurnosBoard({
           {turnosPatio.length === 0 ? (
             <p className="board__column-empty">No hay lavados en curso</p>
           ) : (
-            turnosPatio.map((turno) => (
-              <TurnoCard
-                key={turno.id}
-                turno={turno}
-                onFinalizar={onFinalizar}
-                onCancelar={onCancelar}
-                onActualizarFase={onActualizarFase}
-              />
-            ))
+            turnosPatio.map(renderCard)
           )}
         </div>
       </div>

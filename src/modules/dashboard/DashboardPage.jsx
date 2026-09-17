@@ -1,5 +1,7 @@
 import { useBahiasDisponibles } from "../bahias/hooks/useBahiasDisponibles.js";
 import { useOperariosActivos } from "../operarios/hooks/useOperariosActivos.js";
+import { useOperariosInactivos } from "../operarios/hooks/useOperariosInactivos.js";
+import { useOperariosOcupados } from "../operarios/hooks/useOperariosOcupados.js";
 import { useServicios } from "../servicios/hooks/useServicios.js";
 import { useTurnosActivos } from "../turnos/hooks/useTurnosActivos.js";
 import { ESTADO_TURNO } from "../turnos/constants/turnoEnums.js";
@@ -8,6 +10,8 @@ export function DashboardPage() {
   const { turnos } = useTurnosActivos();
   const { bahias } = useBahiasDisponibles();
   const { operarios } = useOperariosActivos();
+  const { operarios: operariosInactivos } = useOperariosInactivos();
+  const { operarios: operariosOcupados } = useOperariosOcupados();
   const { servicios } = useServicios();
   const activeTurnos = turnos.filter((turno) => !["FINALIZADO", "CANCELADO"].includes(turno.estadoActual));
   const estados = Object.keys(ESTADO_TURNO).map((estado) => ({ estado, label: ESTADO_TURNO[estado].label, count: turnos.filter((turno) => turno.estadoActual === estado).length }));
@@ -20,6 +24,8 @@ export function DashboardPage() {
         <article className="stat-card stat-card--accent"><span>Turnos activos</span><strong>{activeTurnos.length}</strong><small>En la fila actual</small></article>
         <article className="stat-card"><span>Bahías disponibles</span><strong>{bahias.length}</strong><small>Listas para recibir</small></article>
         <article className="stat-card"><span>Operarios activos</span><strong>{operarios.length}</strong><small>Equipo conectado</small></article>
+        <article className="stat-card"><span>Operarios ocupados</span><strong>{operariosOcupados.length}</strong><small>En lavado</small></article>
+        <article className="stat-card"><span>Operarios inactivos</span><strong>{operariosInactivos.length}</strong><small>Fuera de turno</small></article>
         <article className="stat-card"><span>Servicios</span><strong>{servicios.length}</strong><small>En el catálogo</small></article>
       </div>
       <div className="dashboard__grid">

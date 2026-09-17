@@ -21,8 +21,7 @@ import { http } from "../../../api/httpClient.js";
  * @property {"AUTO"|"MOTO"|"CAMIONETA"} tipo_vehiculo - obligatorio
  * @property {string} telefono_cliente - exactamente 10 dígitos
  * @property {string} id_servicio      - obligatorio
- * @property {string} id_operario      - obligatorio
- * @property {string} id_bahia         - obligatorio
+ * La asignación de operario y bahía es automática en el backend (RF-02, RN-02).
  */
 
 /**
@@ -35,6 +34,21 @@ import { http } from "../../../api/httpClient.js";
  * @property {string} fechaIngreso
  */
 
+function normalizeTurno(turno) {
+  return {
+    ...turno,
+    numeroTurno: turno.numero_turno,
+    tipoVehiculo: turno.tipo_vehiculo,
+    telefonoCliente: turno.telefono_cliente,
+    idServicio: turno.id_servicio,
+    idOperario: turno.id_operario,
+    idBahia: turno.id_bahia,
+    estadoActual: turno.estado_actual,
+    fechaIngreso: turno.fecha_ingreso,
+    hashConsulta: turno.hash_consulta,
+  };
+}
+
 export const turnosService = {
   /**
    * GET /api/v1/turnos/activos
@@ -42,19 +56,51 @@ export const turnosService = {
    */
   getActivos: async () => {
     const turnos = await http.get("/api/v1/turnos/activos");
-    return turnos.map((turno) => ({
-      ...turno,
-      numeroTurno: turno.numero_turno,
-      tipoVehiculo: turno.tipo_vehiculo,
-      telefonoCliente: turno.telefono_cliente,
-      idServicio: turno.id_servicio,
-      idOperario: turno.id_operario,
-      idBahia: turno.id_bahia,
-      estadoActual: turno.estado_actual,
-      fechaIngreso: turno.fecha_ingreso,
-      hashConsulta: turno.hash_consulta,
-    }));
+    return turnos.map(normalizeTurno);
   },
+
+  /**
+   * GET /api/v1/turnos/tablero  (RF-05)
+   * @returns {Promise<{en_atencion: any[], en_cola: any[], total: number}>}
+   */
+  getTablero: async () => {
+    const tablero = await http.get("/api/v1/turnos/tablero");
+    return {
+      en_atencion: (tablero.en_atencion ?? []).map(normalizeTurno),
+      en_cola: (tablero.en_cola ?? []).map(normalizeTurno),
+      total: tablero.total ?? 0,
+    };
+  },
+
+  /**
+   * GET /api/v1/turnos/display
+   * @returns {Promise<any[]>}
+   */
+  getDisplay: () => http.get("/api/v1/turnos/display"),
+
+  /**
+   * GET /api/v1/turnos/mio  (RF-04)
+   * @returns {Promise<any>}
+   */
+  getMio: async () => normalizeTurno(await http.get("/api/v1/turnos/mio")),
+
+  /**
+   * GET /api/v1/turnos/mios  (RF-04)
+   * @returns {Promise<any[]>}
+   */
+  getMios: async () => {
+    const turnos = await http.get("/api/v1/turnos/mios");
+    return turnos.map(normalizeTurno);
+  },
+
+  /**
+   * PATCH /api/v1/turnos/{id}/bahia
+   * @param {string|number} id
+   * @param {string|number} idBahia
+   * @returns {Promise<Turno>}
+   */
+  asignarBahia: async (id, idBahia) =>
+    normalizeTurno(await http.patch(`/api/v1/turnos/${id}/bahia`, { id_bahia: idBahia })),
 
   /**
    * POST /api/v1/turnos
@@ -78,41 +124,15 @@ export const turnosService = {
    * @param {string|number} id
    * @returns {Promise<Turno>}
    */
-  finalizar: async (id) => {
-    const turno = await http.patch(`/api/v1/turnos/${id}/finalizar`);
-    return {
-      ...turno,
-      numeroTurno: turno.numero_turno,
-      tipoVehiculo: turno.tipo_vehiculo,
-      telefonoCliente: turno.telefono_cliente,
-      idServicio: turno.id_servicio,
-      idOperario: turno.id_operario,
-      idBahia: turno.id_bahia,
-      estadoActual: turno.estado_actual,
-      fechaIngreso: turno.fecha_ingreso,
-      hashConsulta: turno.hash_consulta,
-    };
-  },
+  finalizar: async (id) =>
+    normalizeTurno(await http.patch(`/api/v1/turnos/${id}/finalizar`)),
 
   /**
    * PATCH /api/v1/turnos/{id}/cancelar
    * @param {string|number} id
    * @returns {Promise<Turno>}
    */
-  cancelar: async (id) => {
-    const turno = await http.patch(`/api/v1/turnos/${id}/cancelar`);
-    return {
-      ...turno,
-      numeroTurno: turno.numero_turno,
-      tipoVehiculo: turno.tipo_vehiculo,
-      telefonoCliente: turno.telefono_cliente,
-      idServicio: turno.id_servicio,
-      idOperario: turno.id_operario,
-      idBahia: turno.id_bahia,
-      estadoActual: turno.estado_actual,
-      fechaIngreso: turno.fecha_ingreso,
-      hashConsulta: turno.hash_consulta,
-    };
-  },
+  cancelar: async (id) =>
+    normalizeTurno(await http.patch(`/api/v1/turnos/${id}/cancelar`)),
 };
 

@@ -1,11 +1,12 @@
 /**
  * Enums de estado para operarios confirmados contra el backend.
- * EstadoOperario: DISPONIBLE | OCUPADO
+ * EstadoOperario: DISPONIBLE | OCUPADO | INACTIVO
  */
 
 export const ESTADO_OPERARIO = {
   DISPONIBLE: { label: "Disponible", tone: "positive" },
   OCUPADO: { label: "Ocupado", tone: "warning" },
+  INACTIVO: { label: "Inactivo", tone: "danger" },
 };
 
 export function getEstadoOperarioInfo(estado) {

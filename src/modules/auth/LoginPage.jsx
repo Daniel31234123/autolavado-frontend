@@ -15,7 +15,7 @@ export function LoginPage() {
 
   // Si ya está autenticado, redirigir según su rol (RFF-001 / RFF-003)
   if (!isLoading && isAuthenticated) {
-    const destino = isAdmin ? "/operarios" : "/turnos";
+    const destino = isAdmin ? "/dashboard" : "/turnos";
     return <Navigate to={destino} replace />;
   }
 
@@ -45,7 +45,7 @@ export function LoginPage() {
       // Redirección según rol (RFF-001)
       const roleUpper = String(result.role).toUpperCase();
       if (roleUpper === "ADMINISTRADOR") {
-        navigate("/operarios", { replace: true });
+        navigate("/dashboard", { replace: true });
       } else {
         navigate("/turnos", { replace: true });
       }
@@ -163,11 +163,11 @@ export function LoginPage() {
                 <button
                   type="button"
                   className="quick-chip"
-                  onClick={() => handleQuickFill("operario_prueba", "Operario123*")}
+                  onClick={() => handleQuickFill("1001001", "Operario123*")}
                   title="Autocompletar como Operario"
                 >
                   <span className="quick-chip__role">Operario</span>
-                  <span className="quick-chip__user">operario_prueba</span>
+                  <span className="quick-chip__user">1001001</span>
                 </button>
               </div>
             </div>

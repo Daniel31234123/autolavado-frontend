@@ -3,13 +3,12 @@ import { http } from "../../../api/httpClient.js";
 /**
  * @typedef {Object} Bahia
  * @property {string} id
- * @property {string} nombreBahia
- * @property {"GENERAL"|"DETAILING"|"SECADO"} tipo        - ver constants/bahiaEnums.js -> TIPO_BAHIA
+ * @property {string} nombre
  * @property {"DISPONIBLE"|"OCUPADA"|"MANTENIMIENTO"} estado - ver constants/bahiaEnums.js -> ESTADO_BAHIA
  */
 
 function normalize(bahia) {
-  return { ...bahia, nombreBahia: bahia.nombre_bahia };
+  return { ...bahia, nombreBahia: bahia.nombre || bahia.nombre_bahia };
 }
 
 export const bahiasService = {
@@ -32,4 +31,29 @@ export const bahiasService = {
     const bahias = await http.get("/api/v1/bahias/disponibles");
     return bahias.map(normalize);
   },
+
+  /**
+   * POST /api/v1/bahias
+   * @param {{nombre: string}} payload
+   * @returns {Promise<Bahia>}
+   */
+  create: async (payload) => normalize(await http.post("/api/v1/bahias", payload)),
+
+  /**
+   * PUT /api/v1/bahias/{id}
+   * @param {string|number} id
+   * @param {{nombre: string}} payload
+   * @returns {Promise<Bahia>}
+   */
+  update: async (id, payload) =>
+    normalize(await http.put(`/api/v1/bahias/${id}`, payload)),
+
+  /**
+   * PATCH /api/v1/bahias/{id}/estado
+   * @param {string|number} id
+   * @param {string} estado
+   * @returns {Promise<Bahia>}
+   */
+  cambiarEstado: async (id, estado) =>
+    normalize(await http.patch(`/api/v1/bahias/${id}/estado`, { estado })),
 };

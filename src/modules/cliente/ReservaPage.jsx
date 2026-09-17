@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { serviciosApi } from "../../api/serviciosApi.js";
+import { serviciosService } from "../servicios/api/serviciosService.js";
 import { reservasApi } from "../../api/reservasApi.js";
 import { vehiculosApi } from "../../api/vehiculosApi.js";
 
@@ -11,7 +11,7 @@ export function ReservaPage() {
   const [placa, setPlaca] = useState("");
   const [sugerenciasPlaca, setSugerenciasPlaca] = useState([]);
   const [vehiculoExistente, setVehiculoExistente] = useState(false);
-  const [tipoVehiculo, setTipoVehiculo] = useState("Auto");
+  const [tipoVehiculo, setTipoVehiculo] = useState("AUTO");
   const [telefonoCliente, setTelefonoCliente] = useState("");
   const [idServicio, setIdServicio] = useState("");
   
@@ -32,8 +32,8 @@ export function ReservaPage() {
 
   // Cargar catálogo de servicios al montar
   useEffect(() => {
-    serviciosApi
-      .obtenerTodos()
+    serviciosService
+      .getAll()
       .then((data) => {
         setServicios(data || []);
         if (data && data.length > 0) {
@@ -83,9 +83,14 @@ export function ReservaPage() {
         // Si coincide exactamente con un vehículo existente
         const exacto = sugerencias?.find((s) => s.placa.toUpperCase() === val);
         if (exacto) {
-          setTipoVehiculo(exacto.tipoVehiculo || "Auto");
-          setTelefonoCliente(exacto.telefonoCliente || "");
-          setVehiculoExistente(true);
+          applyVehiculo(exacto);
+        } else if (val.length === 6) {
+          // RF-01: consulta directa del vehículo por placa completa
+          try {
+            applyVehiculo(await vehiculosApi.obtenerPorPlaca(val));
+          } catch {
+            setVehiculoExistente(false);
+          }
         } else {
           setVehiculoExistente(false);
         }
@@ -98,10 +103,20 @@ export function ReservaPage() {
     }
   };
 
+  const applyVehiculo = (vehiculo) => {
+    if (!vehiculo || !vehiculo.placa) {
+      setVehiculoExistente(false);
+      return;
+    }
+    setTipoVehiculo(vehiculo.tipo_vehiculo || vehiculo.tipoVehiculo || "AUTO");
+    setTelefonoCliente(vehiculo.telefono_cliente || vehiculo.telefonoCliente || "");
+    setVehiculoExistente(true);
+  };
+
   const seleccionarSugerencia = (sug) => {
     setPlaca(sug.placa);
-    setTipoVehiculo(sug.tipoVehiculo || "Auto");
-    setTelefonoCliente(sug.telefonoCliente || "");
+    setTipoVehiculo(sug.tipo_vehiculo || sug.tipoVehiculo || "AUTO");
+    setTelefonoCliente(sug.telefono_cliente || sug.telefonoCliente || "");
     setVehiculoExistente(true);
     setSugerenciasPlaca([]);
   };
@@ -215,7 +230,7 @@ export function ReservaPage() {
               fontWeight: 600,
             }}
           >
-            🔍 Rastrear Vehículo
+            Rastrear vehículo
           </Link>
           <Link
             to="/login"
@@ -257,11 +272,12 @@ export function ReservaPage() {
                 color: "#15803d",
                 display: "grid",
                 placeItems: "center",
-                fontSize: "36px",
                 margin: "0 auto 20px",
               }}
             >
-              ✓
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
             </div>
 
             <h1
@@ -306,7 +322,7 @@ export function ReservaPage() {
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
                 <span style={{ color: "#64748b", fontSize: "0.9rem" }}>Vehículo (Placa):</span>
                 <span style={{ fontWeight: 700, fontFamily: "var(--font-mono)" }}>
-                  {reservaConfirmada.placa} ({reservaConfirmada.tipo_vehiculo || "Auto"})
+                  {reservaConfirmada.placa} ({reservaConfirmada.tipo_vehiculo || "AUTO"})
                 </span>
               </div>
 
@@ -350,7 +366,7 @@ export function ReservaPage() {
                   fontSize: "1rem",
                 }}
               >
-                📡 Monitorear Estado en Vivo
+                Monitorear estado en vivo
               </button>
 
               <button
@@ -414,7 +430,7 @@ export function ReservaPage() {
                   fontSize: "0.95rem",
                 }}
               >
-                ⚠️ {error}
+                {error}
               </div>
             )}
 
@@ -496,7 +512,8 @@ export function ReservaPage() {
                           >
                             <span style={{ fontWeight: 700, fontFamily: "var(--font-mono)" }}>{sug.placa}</span>
                             <span style={{ color: "#64748b", marginLeft: "10px", fontSize: "0.8rem" }}>
-                              ({sug.tipoVehiculo || "Auto"}) - {sug.telefonoCliente}
+                              ({sug.tipo_vehiculo || sug.tipoVehiculo || "AUTO"}) -{" "}
+                              {sug.telefono_cliente || sug.telefonoCliente}
                             </span>
                           </button>
                         ))}
@@ -520,9 +537,9 @@ export function ReservaPage() {
                         background: "#fff",
                       }}
                     >
-                      <option value="Auto">Automóvil / Sedán</option>
-                      <option value="Camioneta">Camioneta / SUV</option>
-                      <option value="Moto">Motocicleta</option>
+                      <option value="AUTO">Automóvil / Sedán</option>
+                      <option value="CAMIONETA">Camioneta / SUV</option>
+                      <option value="MOTO">Motocicleta</option>
                     </select>
                   </div>
 
@@ -567,20 +584,20 @@ export function ReservaPage() {
                     return (
                       <div
                         key={srv.id}
+                        className={`reserva-servicio ${esSeleccionado ? "reserva-servicio--activo" : ""}`}
                         onClick={() => setIdServicio(String(srv.id))}
-                        style={{
-                          border: esSeleccionado ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
-                          background: esSeleccionado ? "rgba(255, 105, 77, 0.04)" : "#fff",
-                          borderRadius: "12px",
-                          padding: "16px",
-                          cursor: "pointer",
-                          transition: "all 0.15s ease",
-                          boxShadow: esSeleccionado ? "0 4px 12px rgba(255, 105, 77, 0.15)" : "none",
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setIdServicio(String(srv.id));
+                          }
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", gap: "8px" }}>
                           <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>
-                            {srv.nombre.replace(/_/g, " ")}
+                            {String(srv.nombre).replace(/_/g, " ")}
                           </span>
                           <input
                             type="radio"
@@ -590,11 +607,11 @@ export function ReservaPage() {
                             style={{ accentColor: "var(--color-primary)" }}
                           />
                         </div>
-                        <div style={{ color: "var(--color-primary-dark)", fontWeight: 800, fontSize: "1.15rem", marginBottom: "4px" }}>
-                          ${Number(srv.precioBase || srv.tarifaBase || 0).toLocaleString("es-CO")}
+                        <div className="reserva-servicio__precio">
+                          ${Number(srv.precioBase ?? srv.precio_base ?? 0).toLocaleString("es-CO")}
                         </div>
-                        <div style={{ color: "#64748b", fontSize: "0.8rem" }}>
-                          ⏱️ ~{srv.tiempoEstimadoMin} min estimados
+                        <div className="reserva-servicio__tiempo">
+                          {srv.tiempoEstimadoMin ?? srv.tiempo_estimado_min ?? 0} min estimados
                         </div>
                       </div>
                     );
@@ -717,7 +734,7 @@ export function ReservaPage() {
                 <div>
                   <span style={{ color: "#64748b", fontSize: "0.85rem" }}>Total Estimado:</span>
                   <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--color-primary-dark)" }}>
-                    ${Number(servicioSeleccionado?.precioBase || servicioSeleccionado?.tarifaBase || 0).toLocaleString("es-CO")}
+                    ${Number(servicioSeleccionado?.precioBase ?? servicioSeleccionado?.precio_base ?? 0).toLocaleString("es-CO")}
                   </div>
                 </div>
 

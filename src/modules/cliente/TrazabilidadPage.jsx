@@ -106,7 +106,7 @@ export function TrazabilidadPage() {
               fontWeight: 600,
             }}
           >
-            📅 Reservar Cita
+            Reservar cita
           </Link>
           <Link
             to="/login"
@@ -200,7 +200,7 @@ export function TrazabilidadPage() {
               fontSize: "0.95rem",
             }}
           >
-            ⚠️ {error}
+            {error}
           </div>
         )}
 
@@ -253,7 +253,13 @@ export function TrazabilidadPage() {
                   animation: "fadeIn 0.5s ease",
                 }}
               >
-                <div style={{ fontSize: "2.5rem", marginBottom: "8px" }}>🚗✨</div>
+                <div style={{ color: "#16a34a", marginBottom: "10px" }}>
+                  <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M5 17h14M6.5 17a1.5 1.5 0 1 0 3 0M14.5 17a1.5 1.5 0 1 0 3 0" />
+                    <path d="M4 17v-4l2-5h12l2 5v4" />
+                    <path d="M4 13h16" />
+                  </svg>
+                </div>
                 <h2
                   style={{
                     color: "#15803d",
@@ -314,14 +320,14 @@ export function TrazabilidadPage() {
               <div>
                 <span style={{ color: "#64748b", fontSize: "0.8rem" }}>Operario Asignado:</span>
                 <div style={{ fontWeight: 600, fontSize: "1rem", color: "var(--color-primary-dark)" }}>
-                  👤 {trazabilidad.nombre_operario || "En asignación"}
+                  {trazabilidad.nombre_operario || "En asignación"}
                 </div>
               </div>
 
               <div>
                 <span style={{ color: "#64748b", fontSize: "0.8rem" }}>Tiempo Estimado:</span>
                 <div style={{ fontWeight: 600, fontSize: "1rem" }}>
-                  ⏱️ ~{trazabilidad.tiempo_estimado_min} min
+                  ~{trazabilidad.tiempo_estimado_min} min
                 </div>
               </div>
             </div>
@@ -412,7 +418,13 @@ export function TrazabilidadPage() {
                           transition: "all 0.3s ease",
                         }}
                       >
-                        {esCompletada ? "✓" : idx + 1}
+                        {esCompletada ? (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        ) : (
+                          idx + 1
+                        )}
                       </div>
 
                       {/* Texto del hito */}
@@ -425,7 +437,7 @@ export function TrazabilidadPage() {
                             marginBottom: "2px",
                           }}
                         >
-                          {fase.titulo} {esActiva && <span style={{ fontSize: "0.8rem", color: "var(--color-primary)" }}>● (En ejecución)</span>}
+                          {fase.titulo} {esActiva && <span style={{ fontSize: "0.8rem", color: "var(--color-primary)" }}>· En ejecución</span>}
                         </div>
                         <div style={{ color: "#64748b", fontSize: "0.85rem" }}>
                           {fase.descripcion}

@@ -2364,4 +2364,259 @@ select {
   }
 }
 
+/* ============================================================
+   Ajustes UX (Incremento 1/2): tablero, layout admin y formulario
+   ============================================================ */
+
+/* El tablero solo tiene 2 columnas (En cola / En patio). Antes se
+   declaraban 4 pistas y quedaban 2 vacías, separando demasiado las
+   secciones. auto-fit ocupa el ancho disponible. */
+.board {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.board__column {
+  padding: 14px;
+}
+
+/* Panel de administración: menos espacio entre el tablero y el aside */
+.page--split {
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+}
+
+.app-shell__content {
+  padding: 32px 40px;
+}
+
+/* Menos separación vertical entre secciones del panel */
+.page__header {
+  margin-bottom: 20px;
+}
+
+.dashboard__stats {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.dashboard__grid {
+  gap: 12px;
+}
+
+.dashboard__panel {
+  min-height: 260px;
+  padding: 20px;
+}
+
+/* Formulario de registro de turno (CrearTurnoForm) */
+.form-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 6px 20px rgba(17, 24, 39, 0.04);
+}
+
+.form-panel__header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.form-panel__header h2 {
+  font-size: 1.15rem;
+}
+
+.form-panel__header p {
+  margin: 6px 0 0;
+  color: #5a6560;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #44504a;
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-input:hover,
+.form-select:hover {
+  border-color: #c3cfc8;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(255, 105, 77, 0.15);
+}
+
+.form-input:disabled,
+.form-select:disabled {
+  background: #f4f6f4;
+  color: #8a9188;
+  cursor: not-allowed;
+}
+
+.form-input.font-mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn--block:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--outline {
+  background: transparent;
+  color: var(--color-ink);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+/* Títulos de grupo dentro del sidebar */
+.sidebar__group-title {
+  margin: 16px 0 4px;
+  padding: 0 8px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(244, 242, 236, 0.45);
+}
+
+.sidebar__group-title:first-child {
+  margin-top: 0;
+}
+
+.btn--outline:hover {
+  background: #edf2f1;
+}
+
+/* Toast flotante reutilizado por las páginas de administración */
+.alert--floating {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 1000;
+  max-width: 360px;
+  box-shadow: 0 12px 32px rgba(17, 24, 39, 0.18);
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Tarjetas de servicio del portal de reservas */
+.reserva-servicio {
+  border: 1px solid var(--color-border);
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.reserva-servicio:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 6px 16px rgba(255, 105, 77, 0.12);
+  transform: translateY(-1px);
+}
+
+.reserva-servicio--activo {
+  border: 2px solid var(--color-primary);
+  background: rgba(255, 105, 77, 0.04);
+  box-shadow: 0 6px 16px rgba(255, 105, 77, 0.15);
+}
+
+.reserva-servicio__precio {
+  color: var(--color-primary-dark);
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+
+.reserva-servicio__tiempo {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+/* Tarjeta de servicio en el panel admin: evita que el botón Editar
+   se desborde cuando el nombre es una palabra larga sin espacios. */
+.servicio-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.servicio-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.servicio-card__head h3 {
+  flex: 1 1 140px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.servicio-card__edit {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.servicio-card__meta {
+  margin-top: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.servicio-card__fases {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
 

@@ -16,8 +16,6 @@ import { http } from "./httpClient.js";
  * @property {'AUTO' | 'CAMIONETA' | 'MOTO'} tipo_vehiculo
  * @property {string} telefono_cliente
  * @property {number} id_servicio
- * @property {number} id_operario
- * @property {number} id_bahia
  */
 
 /**
@@ -82,4 +80,37 @@ export const turnosApi = {
    * @returns {Promise<Turno>}
    */
   cancelar: (id) => http.patch(`/api/v1/turnos/${id}/cancelar`),
+
+  /**
+   * RF-05: Tablero consolidado del administrador con autos en atención y en cola
+   * @returns {Promise<{en_atencion: any[], en_cola: any[], total: number}>}
+   */
+  obtenerTablero: () => http.get("/api/v1/turnos/tablero"),
+
+  /**
+   * Pantalla pública de display con el avance de los vehículos en patio
+   * @returns {Promise<any[]>}
+   */
+  obtenerDisplay: () => http.get("/api/v1/turnos/display"),
+
+  /**
+   * RF-04: Turno actualmente asignado al operario autenticado
+   * @returns {Promise<any>}
+   */
+  obtenerMio: () => http.get("/api/v1/turnos/mio"),
+
+  /**
+   * RF-04: Listado de turnos asignados al operario autenticado
+   * @returns {Promise<any[]>}
+   */
+  obtenerMios: () => http.get("/api/v1/turnos/mios"),
+
+  /**
+   * Asigna o reasigna una bahía a un turno
+   * @param {number} id
+   * @param {number} idBahia
+   * @returns {Promise<Turno>}
+   */
+  asignarBahia: (id, idBahia) =>
+    http.patch(`/api/v1/turnos/${id}/bahia`, { id_bahia: idBahia }),
 };

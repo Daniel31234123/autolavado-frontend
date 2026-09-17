@@ -4,7 +4,7 @@ import { EmptyState } from "../../../shared/components/EmptyState.jsx";
 import { useServicios } from "../hooks/useServicios.js";
 import { ServicioCard } from "./ServicioCard.jsx";
 
-export function ServiciosList() {
+export function ServiciosList({ onEdit }) {
   const { servicios, isLoading, isError, error, refetch } = useServicios();
 
   if (isLoading) return <Loader label="Cargando catálogo de servicios..." />;
@@ -16,7 +16,7 @@ export function ServiciosList() {
   return (
     <div className="grid grid--cards">
       {servicios.map((servicio) => (
-        <ServicioCard key={servicio.id} servicio={servicio} />
+        <ServicioCard key={servicio.id} servicio={servicio} onEdit={onEdit} />
       ))}
     </div>
   );

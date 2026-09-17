@@ -80,4 +80,13 @@ export const operariosApi = {
    * @returns {Promise<Operario>}
    */
   desactivar: (id) => http.patch(`/api/v1/operarios/${id}/desactivar`),
+
+  /**
+   * RF-03: Cambia el estado laboral del operario para las asignaciones automáticas.
+   * @param {number} id
+   * @param {'DISPONIBLE' | 'OCUPADO' | 'INACTIVO'} estado
+   * @returns {Promise<Operario>}
+   */
+  cambiarEstado: (id, estado) =>
+    http.patch(`/api/v1/operarios/${id}/estado`, { estado }),
 };

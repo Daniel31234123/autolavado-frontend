@@ -67,6 +67,8 @@ function TablaOperariosSkeleton() {
  * Muestra nombre, documento, usuario, estado y acciones de editar/desactivar.
  * NUNCA muestra hashes de contraseña ni información sensible.
  */
+const ESTADOS_OPERARIO = ["DISPONIBLE", "OCUPADO", "INACTIVO"];
+
 export function TablaOperarios({
   operarios = [],
   isLoading = false,
@@ -75,6 +77,8 @@ export function TablaOperarios({
   onRetry,
   onEdit,
   onDesactivar,
+  onCambiarEstado,
+  updatingEstadoId = null,
 }) {
   if (isLoading) {
     return <TablaOperariosSkeleton />;
@@ -108,14 +112,13 @@ export function TablaOperarios({
         </thead>
         <tbody>
           {operarios.map((op) => {
+            const estadoUpper = String(op.estado || "").toUpperCase();
             const estadoDisplay =
-              op.activo === false
+              op.activo === false || estadoUpper === "INACTIVO"
                 ? "Inactivo"
-                : String(op.estado).toUpperCase() === "OCUPADO"
+                : estadoUpper === "OCUPADO"
                 ? "Ocupado"
-                : String(op.estado).toUpperCase() === "INACTIVO"
-                ? "Inactivo"
-                : "Activo";
+                : "Disponible";
             const isInactivo = estadoDisplay === "Inactivo";
 
             return (
@@ -144,6 +147,23 @@ export function TablaOperarios({
                 </td>
                 <td className="text-right">
                   <div className="table-actions">
+                    {onCambiarEstado && (
+                      <select
+                        value={isInactivo ? "INACTIVO" : estadoUpper === "OCUPADO" ? "OCUPADO" : "DISPONIBLE"}
+                        onChange={(e) => onCambiarEstado(op, e.target.value)}
+                        disabled={updatingEstadoId === op.id}
+                        title="Cambiar estado laboral (RF-03)"
+                        id={`select-estado-operario-${op.id}`}
+                        style={{ padding: "4px 8px", borderRadius: "6px", border: "1px solid var(--color-border)" }}
+                      >
+                        {ESTADOS_OPERARIO.map((estado) => (
+                          <option key={estado} value={estado}>
+                            {estado}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
                     <button
                       type="button"
                       className="btn btn--sm btn--secondary"
