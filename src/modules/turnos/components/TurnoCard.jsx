@@ -22,6 +22,11 @@ export function TurnoCard({
   const telefono = turno.telefono_cliente || turno.telefonoCliente || "—";
   const estadoActual = turno.estado_actual || turno.estadoActual || "EN_COLA";
   const fechaIngreso = turno.fecha_ingreso || turno.fechaIngreso;
+  const idBahia = turno.id_bahia ?? turno.idBahia ?? null;
+  const tieneBahia = idBahia !== null && idBahia !== undefined && idBahia !== "";
+  const nombreOperario =
+    turno.nombre_operario || turno.nombreOperario || "Por asignar";
+  const nombreBahia = turno.nombre_bahia || turno.nombreBahia || "Sin bahía";
 
   const horaFormateada = fechaIngreso
     ? new Date(fechaIngreso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
@@ -36,6 +41,11 @@ export function TurnoCard({
   const fases = Array.isArray(servicio?.fases) && servicio.fases.length > 0
     ? servicio.fases
     : FASES_FALLBACK;
+  // EN_COLA y EN_PATIO son estados de ubicación, no acciones de lavado.
+  const fasesAccionables = fases.filter((f) => {
+    const clave = String(f).toUpperCase();
+    return clave !== "EN_COLA" && clave !== "EN_PATIO";
+  });
 
   const cambiarFase = async (fase) => {
     if (!onActualizarFase) return;
@@ -61,6 +71,14 @@ export function TurnoCard({
 
       <dl className="turno-card__details">
         <div>
+          <dt>Operario</dt>
+          <dd>{nombreOperario}</dd>
+        </div>
+        <div>
+          <dt>Bahía</dt>
+          <dd>{nombreBahia}</dd>
+        </div>
+        <div>
           <dt>Teléfono</dt>
           <dd className="font-mono">{telefono}</dd>
         </div>
@@ -72,14 +90,14 @@ export function TurnoCard({
         )}
       </dl>
 
-      {/* Controles de Fases para Operario (RF-CL-02) */}
-      {!esFinalizado && onActualizarFase && (
+      {/* Controles de Fases (solo con bahía asignada; en cola se asigna automáticamente) */}
+      {!esFinalizado && tieneBahia && onActualizarFase && (
         <div style={{ borderTop: "1px dashed var(--color-border)", paddingTop: "10px", marginTop: "4px" }}>
           <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", marginBottom: "6px" }}>
             FASES DE LAVADO (TIEMPO REAL):
           </div>
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            {fases.map((fase) => {
+            {fasesAccionables.map((fase) => {
               const clave = String(fase).toUpperCase();
               const esActiva = estadoUpper === clave;
               const esFinal = clave === "LISTO" || clave === "LISTO_PARA_RECOGER";

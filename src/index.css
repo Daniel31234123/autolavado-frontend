@@ -2518,6 +2518,11 @@ select {
   margin-top: 0;
 }
 
+.badge--info {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
 .btn--outline:hover {
   background: #edf2f1;
 }

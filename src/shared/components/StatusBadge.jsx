@@ -15,6 +15,8 @@ const STATUS_CONFIG = {
   RESERVADA: { label: "Reservada", className: "badge--info" },
   EN_ATENCION: { label: "En atención", className: "badge--warning" },
   RECEPCION: { label: "En Espera", className: "badge--info" },
+  EN_COLA: { label: "En Cola", className: "badge--info" },
+  EN_PATIO: { label: "En Patio", className: "badge--warning" },
   LAVADO: { label: "En Proceso", className: "badge--warning" },
   FINALIZADO: { label: "Finalizado", className: "badge--positive" },
   CANCELADO: { label: "Cancelado", className: "badge--danger" },

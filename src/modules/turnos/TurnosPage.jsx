@@ -13,7 +13,11 @@ export function TurnosPage() {
   const [turnos, setTurnos] = useState([]);
   const { servicios } = useServicios();
   const [tablero, setTablero] = useState(null);
+  // Disponibles: lo que ve el operario (y opciones del selector del admin).
   const [bahiasDisponibles, setBahiasDisponibles] = useState([]);
+  // Todas: solo para el selector del tablero del administrador.
+  const [bahiasTodas, setBahiasTodas] = useState([]);
+  const [errorCatalogo, setErrorCatalogo] = useState(null);
 
   const [isLoadingTurnos, setIsLoadingTurnos] = useState(true);
   const [isErrorTurnos, setIsErrorTurnos] = useState(false);
@@ -31,14 +35,22 @@ export function TurnosPage() {
   const [actionError, setActionError] = useState(null);
 
   const fetchCatalogos = useCallback(async () => {
-    try {
-      // El administrador gestiona todas las bahías; el operario solo ve las disponibles.
-      const bahiasData = isAdmin
-        ? await bahiasApi.obtenerTodas()
-        : await bahiasApi.obtenerDisponibles();
-      if (Array.isArray(bahiasData)) setBahiasDisponibles(bahiasData);
-    } catch {
-      // Ignorar error no crítico de catálogo
+    // Las bahías disponibles se consultan siempre por su propio endpoint
+    // (accesible para cualquier usuario autenticado), sin depender del rol.
+    const [disponibles, todas] = await Promise.allSettled([
+      bahiasApi.obtenerDisponibles(),
+      isAdmin ? bahiasApi.obtenerTodas() : Promise.resolve(null),
+    ]);
+
+    if (disponibles.status === "fulfilled" && Array.isArray(disponibles.value)) {
+      setBahiasDisponibles(disponibles.value);
+      setErrorCatalogo(null);
+    } else if (disponibles.status === "rejected") {
+      setErrorCatalogo(disponibles.reason);
+    }
+
+    if (todas.status === "fulfilled" && Array.isArray(todas.value)) {
+      setBahiasTodas(todas.value);
     }
   }, [isAdmin]);
 
@@ -101,8 +113,13 @@ export function TurnosPage() {
     refreshAll();
     // RNF-01: sondeo de actualización cada 2 s para latencia < 2 s (sin parpadeo)
     const interval = setInterval(() => fetchTurnos({ silent: true }), 2000);
-    return () => clearInterval(interval);
-  }, [refreshAll, fetchTurnos]);
+    // Catálogos (bahías disponibles/disponibilidad) cada 5 s
+    const catInterval = setInterval(fetchCatalogos, 5000);
+    return () => {
+      clearInterval(interval);
+      clearInterval(catInterval);
+    };
+  }, [refreshAll, fetchTurnos, fetchCatalogos]);
 
   const handleCreated = (resultadoTurno, formData) => {
     setTurnoCreado(resultadoTurno);
@@ -171,9 +188,14 @@ export function TurnosPage() {
   const getFasesTurno = (turno) => {
     const idServicio = turno.id_servicio ?? turno.idServicio;
     const servicio = servicios.find((s) => Number(s.id) === Number(idServicio));
-    return Array.isArray(servicio?.fases) && servicio.fases.length > 0
+    const fases = Array.isArray(servicio?.fases) && servicio.fases.length > 0
       ? servicio.fases
       : FASES_FALLBACK;
+    // EN_COLA y EN_PATIO son estados de ubicación, no acciones de lavado.
+    return fases.filter((f) => {
+      const clave = String(f).toUpperCase();
+      return clave !== "EN_COLA" && clave !== "EN_PATIO";
+    });
   };
 
   const labelFase = (fase) => String(fase).replace(/_/g, " ");
@@ -219,8 +241,10 @@ export function TurnosPage() {
             <span className="badge badge--positive">{bahiasDisponibles.length}</span>
           </div>
           {bahiasDisponibles.length === 0 ? (
-            <p style={{ color: "#64748b", margin: 0, fontSize: "0.9rem" }}>
-              No hay bahías disponibles en este momento.
+            <p style={{ color: errorCatalogo ? "#b94a62" : "#64748b", margin: 0, fontSize: "0.9rem" }}>
+              {errorCatalogo
+                ? `No se pudieron cargar las bahías: ${errorCatalogo.message || "error de conexión"}.`
+                : "No hay bahías disponibles en este momento."}
             </p>
           ) : (
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
@@ -273,6 +297,8 @@ export function TurnosPage() {
             {misTurnos.map((turno) => {
               const estado = (turno.estado_actual || turno.estadoActual || "EN_COLA").toUpperCase();
               const fasesTurno = getFasesTurno(turno);
+              const idBahiaTurno = turno.id_bahia ?? turno.idBahia ?? null;
+              const tieneBahiaTurno = idBahiaTurno !== null && idBahiaTurno !== undefined && idBahiaTurno !== "";
 
               return (
                 <article
@@ -326,48 +352,55 @@ export function TurnosPage() {
                     </span>
                   </div>
 
-                  {/* Botones de Fases Táctiles (RNF-02: Min 48x48 px) */}
-                  <div style={{ marginBottom: "20px" }}>
-                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, color: "#64748b", marginBottom: "10px" }}>
-                      AVANCE DE FASES (PULSAR PARA REPORTAR EN VIVO):
-                    </label>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
-                      {fasesTurno.map((fase) => {
-                        const clave = String(fase).toUpperCase();
-                        const esActiva = estado === clave;
-                        const esFinal = clave === "LISTO" || clave === "LISTO_PARA_RECOGER";
-                        return (
-                          <button
-                            key={clave}
-                            type="button"
-                            onClick={() => handleActualizarFase(turno.id, clave)}
-                            style={{
-                              minHeight: "52px",
-                              borderRadius: "10px",
-                              border: esFinal
-                                ? "2px solid #22c55e"
-                                : esActiva
-                                ? "2px solid var(--color-primary)"
-                                : "1px solid #cbd5e1",
-                              background: esFinal
-                                ? esActiva
-                                  ? "#22c55e"
-                                  : "#dcfce7"
-                                : esActiva
-                                ? "var(--color-primary)"
-                                : "#f8fafc",
-                              color: esFinal ? (esActiva ? "#fff" : "#15803d") : esActiva ? "#fff" : "var(--color-ink)",
-                              fontWeight: esFinal ? 800 : 700,
-                              fontSize: "0.95rem",
-                              cursor: "pointer",
-                            }}
-                          >
-                            {labelFase(clave)}
-                          </button>
-                        );
-                      })}
+                  {!tieneBahiaTurno ? (
+                    /* En cola: la bahía se asigna automáticamente al liberarse una */
+                    <p style={{ color: "#64748b", fontSize: "0.85rem", margin: "0 0 20px" }}>
+                      En cola: la bahía se asigna automáticamente cuando se libera una.
+                    </p>
+                  ) : (
+                    /* Botones de Fases Táctiles (RNF-02: Min 48x48 px) */
+                    <div style={{ marginBottom: "20px" }}>
+                      <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 700, color: "#64748b", marginBottom: "10px" }}>
+                        AVANCE DE FASES (PULSAR PARA REPORTAR EN VIVO):
+                      </label>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
+                        {fasesTurno.map((fase) => {
+                          const clave = String(fase).toUpperCase();
+                          const esActiva = estado === clave;
+                          const esFinal = clave === "LISTO" || clave === "LISTO_PARA_RECOGER";
+                          return (
+                            <button
+                              key={clave}
+                              type="button"
+                              onClick={() => handleActualizarFase(turno.id, clave)}
+                              style={{
+                                minHeight: "52px",
+                                borderRadius: "10px",
+                                border: esFinal
+                                  ? "2px solid #22c55e"
+                                  : esActiva
+                                  ? "2px solid var(--color-primary)"
+                                  : "1px solid #cbd5e1",
+                                background: esFinal
+                                  ? esActiva
+                                    ? "#22c55e"
+                                    : "#dcfce7"
+                                  : esActiva
+                                  ? "var(--color-primary)"
+                                  : "#f8fafc",
+                                color: esFinal ? (esActiva ? "#fff" : "#15803d") : esActiva ? "#fff" : "var(--color-ink)",
+                                fontWeight: esFinal ? 800 : 700,
+                                fontSize: "0.95rem",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {labelFase(clave)}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div
                     style={{
@@ -441,7 +474,7 @@ export function TurnosPage() {
         onCancelar={handleCancelar}
         onActualizarFase={handleActualizarFase}
         onAsignarBahia={handleAsignarBahia}
-        bahias={bahiasDisponibles}
+        bahias={bahiasTodas.length > 0 ? bahiasTodas : bahiasDisponibles}
         servicios={servicios}
       />
 
