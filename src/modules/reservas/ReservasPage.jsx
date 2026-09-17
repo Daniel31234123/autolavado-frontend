@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { reservasApi } from "../../api/reservasApi.js";
 import { Loader } from "../../shared/components/Loader.jsx";
 import { ErrorState } from "../../shared/components/ErrorState.jsx";
 import { EmptyState } from "../../shared/components/EmptyState.jsx";
 import { StatusBadge } from "../../shared/components/StatusBadge.jsx";
 import { ConfirmModal } from "../../shared/components/ConfirmModal.jsx";
+
+const ESTADOS_RESERVA_INICIAR = ["CONFIRMADA", "PENDIENTE", "RESERVADA"];
+const ESTADOS_RESERVA_CANCELABLES = ["CONFIRMADA", "PENDIENTE", "RESERVADA"];
+const ESTADOS_RESERVA_NO_OPERATIVOS = ["CANCELADA", "CANCELADO", "EN_ATENCION"];
 
 /**
  * Gestión administrativa de reservas (Incremento 2).
@@ -23,6 +27,8 @@ export function ReservasPage() {
   const [detalle, setDetalle] = useState(null);
   const [cancelando, setCancelando] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [iniciandoReservaId, setIniciandoReservaId] = useState(null);
+  const inicioEnCursoRef = useRef(null);
   const [toastMessage, setToastMessage] = useState(null);
   const [actionError, setActionError] = useState(null);
 
@@ -42,7 +48,11 @@ export function ReservasPage() {
         fecha: filtroFecha || undefined,
         placa: filtroPlaca || undefined,
       });
-      setReservas(Array.isArray(data) ? data : []);
+      setReservas(
+        (Array.isArray(data) ? data : []).filter(
+          (reserva) => !ESTADOS_RESERVA_NO_OPERATIVOS.includes(String(reserva.estado || "").toUpperCase()),
+        ),
+      );
       setIsError(false);
       setError(null);
     } catch (err) {
@@ -71,9 +81,17 @@ export function ReservasPage() {
 
   const handleCancelar = async () => {
     if (!cancelando) return;
+    const estado = String(cancelando.estado || "").toUpperCase();
+    if (!ESTADOS_RESERVA_CANCELABLES.includes(estado)) {
+      setCancelando(null);
+      setActionError("Esta reserva ya está en atención y no se puede cancelar.");
+      return;
+    }
+
     setIsProcessing(true);
     try {
       await reservasApi.cancelar(cancelando.id_reserva);
+      setReservas((actuales) => actuales.filter((item) => item.id_reserva !== cancelando.id_reserva));
       await fetchReservas({ silent: true });
       showToast(`Reserva ${cancelando.codigo_reserva} cancelada.`);
       setCancelando(null);
@@ -85,13 +103,31 @@ export function ReservasPage() {
   };
 
   const handleIniciarTurno = async (reserva) => {
+    const estado = String(reserva.estado || "").toUpperCase();
+    const puedeIniciar = ESTADOS_RESERVA_INICIAR.includes(estado);
+
+    if (!puedeIniciar || inicioEnCursoRef.current === reserva.id_reserva) {
+      return;
+    }
+
     setActionError(null);
+    inicioEnCursoRef.current = reserva.id_reserva;
+    setIniciandoReservaId(reserva.id_reserva);
     try {
       const turno = await reservasApi.iniciarTurno(reserva.id_reserva);
+      setReservas((actuales) =>
+        actuales.map((item) =>
+          item.id_reserva === reserva.id_reserva ? { ...item, estado: "EN_ATENCION" } : item,
+        ),
+      );
       await fetchReservas({ silent: true });
       showToast(`Turno ${turno.numero_turno} generado desde la reserva ${reserva.codigo_reserva}.`);
     } catch (err) {
       setActionError(err.message || "Error al iniciar el turno de la reserva.");
+    }
+    finally {
+      inicioEnCursoRef.current = null;
+      setIniciandoReservaId(null);
     }
   };
 
@@ -151,8 +187,8 @@ export function ReservasPage() {
         <ErrorState error={error} onRetry={() => fetchReservas()} />
       ) : reservas.length === 0 ? (
         <EmptyState
-          title="No hay reservas registradas"
-          description="Las reservas creadas desde el portal del cliente aparecerán aquí."
+          title="No hay reservas pendientes"
+          description="Las reservas en atención, canceladas o convertidas en turnos se consultan en sus módulos correspondientes."
         />
       ) : (
         <div className="table-container">
@@ -181,6 +217,14 @@ export function ReservasPage() {
                   </td>
                   <td className="text-right">
                     <div className="table-actions">
+                      {(() => {
+                        const estado = String(r.estado || "").toUpperCase();
+                        const puedeIniciar = ESTADOS_RESERVA_INICIAR.includes(estado);
+                        const puedeCancelar = ESTADOS_RESERVA_CANCELABLES.includes(estado);
+                        const iniciando = iniciandoReservaId === r.id_reserva;
+
+                        return (
+                          <>
                       <button
                         type="button"
                         className="btn btn--sm btn--secondary"
@@ -193,18 +237,35 @@ export function ReservasPage() {
                         type="button"
                         className="btn btn--sm btn--primary"
                         onClick={() => handleIniciarTurno(r)}
+                        disabled={!puedeIniciar || iniciando}
+                        title={
+                          iniciando
+                            ? "Generando turno..."
+                            : puedeIniciar
+                              ? "Convertir la reserva en un turno"
+                              : "Esta reserva ya no puede iniciar otro turno"
+                        }
                         id={`btn-iniciar-reserva-${r.id_reserva}`}
                       >
-                        Iniciar turno
+                        {iniciando ? "Iniciando..." : puedeIniciar ? "Iniciar turno" : "Turno iniciado"}
                       </button>
                       <button
                         type="button"
                         className="btn btn--sm btn--danger-outline"
                         onClick={() => setCancelando(r)}
+                        disabled={!puedeCancelar}
+                        title={
+                          puedeCancelar
+                            ? "Cancelar reserva"
+                            : "No se puede cancelar una reserva que ya está en atención"
+                        }
                         id={`btn-cancelar-reserva-${r.id_reserva}`}
                       >
                         Cancelar
                       </button>
+                          </>
+                        );
+                      })()}
                     </div>
                   </td>
                 </tr>
