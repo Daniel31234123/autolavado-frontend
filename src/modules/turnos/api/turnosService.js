@@ -73,6 +73,17 @@ export const turnosService = {
   },
 
   /**
+   * GET /api/v1/turnos/historial  (todos los turnos, activos y cerrados)
+   * @param {string} [fecha] - filtro opcional YYYY-MM-DD
+   * @returns {Promise<Turno[]>}
+   */
+  getHistorial: async (fecha) => {
+    const query = fecha ? `?fecha=${encodeURIComponent(fecha)}` : "";
+    const turnos = await http.get(`/api/v1/turnos/historial${query}`);
+    return turnos.map(normalizeTurno);
+  },
+
+  /**
    * GET /api/v1/turnos/display
    * @returns {Promise<any[]>}
    */

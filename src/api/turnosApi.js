@@ -88,6 +88,16 @@ export const turnosApi = {
   obtenerTablero: () => http.get("/api/v1/turnos/tablero"),
 
   /**
+   * Historial completo de turnos (activos y cerrados) para el administrador
+   * @param {string} [fecha] - filtro opcional YYYY-MM-DD
+   * @returns {Promise<any[]>}
+   */
+  obtenerHistorial: (fecha) => {
+    const query = fecha ? `?fecha=${encodeURIComponent(fecha)}` : "";
+    return http.get(`/api/v1/turnos/historial${query}`);
+  },
+
+  /**
    * Pantalla pública de display con el avance de los vehículos en patio
    * @returns {Promise<any[]>}
    */

@@ -6,6 +6,10 @@ import { useServicios } from "../servicios/hooks/useServicios.js";
 import { TurnosBoard } from "./components/TurnosBoard.jsx";
 import { CrearTurnoForm } from "./components/CrearTurnoForm.jsx";
 import { ComprobanteTurnoModal } from "./components/ComprobanteTurnoModal.jsx";
+import { Loader } from "../../shared/components/Loader.jsx";
+import { ErrorState } from "../../shared/components/ErrorState.jsx";
+import { EmptyState } from "../../shared/components/EmptyState.jsx";
+import { StatusBadge } from "../../shared/components/StatusBadge.jsx";
 
 export function TurnosPage() {
   const { user, isAdmin, isOperario } = useAuth();
@@ -13,10 +17,8 @@ export function TurnosPage() {
   const [turnos, setTurnos] = useState([]);
   const { servicios } = useServicios();
   const [tablero, setTablero] = useState(null);
-  // Disponibles: lo que ve el operario (y opciones del selector del admin).
+  // Bahías disponibles (información del operario; la asignación es automática).
   const [bahiasDisponibles, setBahiasDisponibles] = useState([]);
-  // Todas: solo para el selector del tablero del administrador.
-  const [bahiasTodas, setBahiasTodas] = useState([]);
   const [errorCatalogo, setErrorCatalogo] = useState(null);
 
   const [isLoadingTurnos, setIsLoadingTurnos] = useState(true);
@@ -30,6 +32,13 @@ export function TurnosPage() {
   // Modal de registro de ingreso (RF-01)
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
+  // Vista del panel: tablero en vivo o historial
+  const [vista, setVista] = useState("TABLERO");
+  const [historial, setHistorial] = useState([]);
+  const [isLoadingHistorial, setIsLoadingHistorial] = useState(false);
+  const [errorHistorial, setErrorHistorial] = useState(null);
+  const [filtroFechaHistorial, setFiltroFechaHistorial] = useState("");
+
   // Alerta de acción
   const [actionMessage, setActionMessage] = useState(null);
   const [actionError, setActionError] = useState(null);
@@ -37,22 +46,16 @@ export function TurnosPage() {
   const fetchCatalogos = useCallback(async () => {
     // Las bahías disponibles se consultan siempre por su propio endpoint
     // (accesible para cualquier usuario autenticado), sin depender del rol.
-    const [disponibles, todas] = await Promise.allSettled([
-      bahiasApi.obtenerDisponibles(),
-      isAdmin ? bahiasApi.obtenerTodas() : Promise.resolve(null),
-    ]);
-
-    if (disponibles.status === "fulfilled" && Array.isArray(disponibles.value)) {
-      setBahiasDisponibles(disponibles.value);
-      setErrorCatalogo(null);
-    } else if (disponibles.status === "rejected") {
-      setErrorCatalogo(disponibles.reason);
+    try {
+      const data = await bahiasApi.obtenerDisponibles();
+      if (Array.isArray(data)) {
+        setBahiasDisponibles(data);
+        setErrorCatalogo(null);
+      }
+    } catch (err) {
+      setErrorCatalogo(err);
     }
-
-    if (todas.status === "fulfilled" && Array.isArray(todas.value)) {
-      setBahiasTodas(todas.value);
-    }
-  }, [isAdmin]);
+  }, []);
 
   const cargaInicialRef = useRef(false);
 
@@ -109,6 +112,26 @@ export function TurnosPage() {
     fetchCatalogos();
   }, [fetchTurnos, fetchCatalogos]);
 
+  const fetchHistorial = useCallback(async () => {
+    setIsLoadingHistorial(true);
+    setErrorHistorial(null);
+    try {
+      const data = await turnosApi.obtenerHistorial(filtroFechaHistorial || undefined);
+      setHistorial(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setErrorHistorial(err);
+    } finally {
+      setIsLoadingHistorial(false);
+    }
+  }, [filtroFechaHistorial]);
+
+  // Refresca el historial al abrir la vista o al cambiar el filtro de fecha.
+  useEffect(() => {
+    if (vista === "HISTORIAL") fetchHistorial();
+  }, [vista, fetchHistorial]);
+
+  const abrirHistorial = () => setVista("HISTORIAL");
+
   useEffect(() => {
     refreshAll();
     // RNF-01: sondeo de actualización cada 2 s para latencia < 2 s (sin parpadeo)
@@ -134,29 +157,16 @@ export function TurnosPage() {
     setActionError(null);
     try {
       await turnosApi.actualizarFase(id, nuevaFase);
-      setActionMessage(`Fase actualizada a ${nuevaFase.replace(/_/g, " ")}. Sincronizado en tiempo real.`);
-      refreshAll();
-      setTimeout(() => setActionMessage(null), 3000);
-    } catch (err) {
-      setActionError(err.message || "Error al actualizar la fase del turno.");
-    }
-  };
-
-  const handleFinalizar = async (id) => {
-    setActionError(null);
-    setActionMessage(null);
-    const turno = turnos.find((item) => Number(item.id) === Number(id));
-    const idBahia = turno?.id_bahia ?? turno?.idBahia;
-    try {
-      await turnosApi.finalizar(id);
-      if (idBahia != null) {
-        await bahiasApi.cambiarEstado(idBahia, "DISPONIBLE");
-      }
-      setActionMessage("Turno finalizado. La bahía quedó disponible para el próximo vehículo.");
+      const esFinal = String(nuevaFase).toUpperCase() === "LISTO";
+      setActionMessage(
+        esFinal
+          ? "Turno finalizado: salió de patio y se liberaron el operario y la bahía."
+          : `Fase actualizada a ${nuevaFase.replace(/_/g, " ")}. Sincronizado en tiempo real.`
+      );
       refreshAll();
       setTimeout(() => setActionMessage(null), 4000);
     } catch (err) {
-      setActionError(err.message || "Error al finalizar el turno.");
+      setActionError(err.message || "Error al actualizar la fase del turno.");
     }
   };
 
@@ -176,41 +186,42 @@ export function TurnosPage() {
     }
   };
 
-  const handleAsignarBahia = async (id, idBahia) => {
-    setActionError(null);
-    try {
-      await turnosApi.asignarBahia(id, Number(idBahia));
-      setActionMessage("Bahía asignada al turno correctamente.");
-      refreshAll();
-      setTimeout(() => setActionMessage(null), 3000);
-    } catch (err) {
-      setActionError(err.message || "Error al asignar la bahía.");
-    }
-  };
-
   // RN-05: las fases visibles se generan dinámicamente desde el catálogo del servicio contratado
   const FASES_FALLBACK = ["POR_INICIAR", "ENJABONADO", "ENJUAGADO", "SECADO", "LISTO"];
   const getFasesTurno = (turno) => {
     const idServicio = turno.id_servicio ?? turno.idServicio;
     const servicio = servicios.find((s) => Number(s.id) === Number(idServicio));
-    const fases = Array.isArray(servicio?.fases) && servicio.fases.length > 0
+    return Array.isArray(servicio?.fases) && servicio.fases.length > 0
       ? servicio.fases
       : FASES_FALLBACK;
-    // EN_COLA y EN_PATIO son estados de ubicación, no acciones de lavado.
-    return fases.filter((f) => {
-      const clave = String(f).toUpperCase();
-      return clave !== "EN_COLA" && clave !== "EN_PATIO";
-    });
   };
 
   const labelFase = (fase) => String(fase).replace(/_/g, " ");
 
   // VISTA OPERARIO (RF-04: Panel Operativo del Lavador con Fases Dinámicas y Ergonomía Táctil)
   if (!isAdmin && isOperario) {
+    const estadoDe = (t) => String(t.estado_actual || t.estadoActual || "").toUpperCase();
     const misTurnos = turnos.filter((t) => {
-      const estado = String(t.estado_actual || t.estadoActual || "").toUpperCase();
+      const estado = estadoDe(t);
       return estado !== "FINALIZADO" && estado !== "CANCELADO";
     });
+
+    // Resumen e historial de servicios del operario (RF-04)
+    const hoy = new Date().toLocaleDateString("es-CO");
+    const esDeHoy = (t) => {
+      const fecha = t.fecha_ingreso || t.fechaIngreso;
+      return fecha ? new Date(fecha).toLocaleDateString("es-CO") === hoy : false;
+    };
+    const finalizados = turnos.filter((t) => estadoDe(t) === "FINALIZADO");
+    const completadosHoy = finalizados.filter(esDeHoy).length;
+    const enProceso = turnos.filter((t) => !["FINALIZADO", "CANCELADO"].includes(estadoDe(t))).length;
+    const historialServicios = [...turnos]
+      .filter((t) => ["FINALIZADO", "CANCELADO"].includes(estadoDe(t)))
+      .sort(
+        (a, b) =>
+          new Date(b.fecha_ingreso || b.fechaIngreso || 0) -
+          new Date(a.fecha_ingreso || a.fechaIngreso || 0)
+      );
 
     return (
       <section className="page" style={{ maxWidth: "780px", margin: "0 auto", padding: "20px 16px" }}>
@@ -230,6 +241,41 @@ export function TurnosPage() {
             </button>
           </div>
         </header>
+
+        {/* Resumen de servicios del operario */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+            gap: "12px",
+            marginBottom: "16px",
+          }}
+        >
+          <div style={{ background: "#fff", border: "1px solid var(--color-border)", borderRadius: "14px", padding: "14px 16px" }}>
+            <span style={{ display: "block", fontSize: "0.78rem", color: "#64748b", fontWeight: 600 }}>
+              Servicios hoy
+            </span>
+            <strong style={{ display: "block", marginTop: "6px", fontSize: "1.8rem", fontFamily: "var(--font-mono)" }}>
+              {completadosHoy}
+            </strong>
+          </div>
+          <div style={{ background: "#fff", border: "1px solid var(--color-border)", borderRadius: "14px", padding: "14px 16px" }}>
+            <span style={{ display: "block", fontSize: "0.78rem", color: "#64748b", fontWeight: 600 }}>
+              En proceso
+            </span>
+            <strong style={{ display: "block", marginTop: "6px", fontSize: "1.8rem", fontFamily: "var(--font-mono)" }}>
+              {enProceso}
+            </strong>
+          </div>
+          <div style={{ background: "#fff", border: "1px solid var(--color-border)", borderRadius: "14px", padding: "14px 16px" }}>
+            <span style={{ display: "block", fontSize: "0.78rem", color: "#64748b", fontWeight: 600 }}>
+              Total completados
+            </span>
+            <strong style={{ display: "block", marginTop: "6px", fontSize: "1.8rem", fontFamily: "var(--font-mono)" }}>
+              {finalizados.length}
+            </strong>
+          </div>
+        </div>
 
         {/* Bahías disponibles para el operario (información permitida) */}
         <div
@@ -302,6 +348,7 @@ export function TurnosPage() {
             {misTurnos.map((turno) => {
               const estado = (turno.estado_actual || turno.estadoActual || "EN_COLA").toUpperCase();
               const fasesTurno = getFasesTurno(turno);
+              const indiceActualTurno = fasesTurno.findIndex((f) => String(f).toUpperCase() === estado);
               const idBahiaTurno = turno.id_bahia ?? turno.idBahia ?? null;
               const tieneBahiaTurno = idBahiaTurno !== null && idBahiaTurno !== undefined && idBahiaTurno !== "";
 
@@ -369,34 +416,39 @@ export function TurnosPage() {
                         AVANCE DE FASES (PULSAR PARA REPORTAR EN VIVO):
                       </label>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
-                        {fasesTurno.map((fase) => {
+                        {fasesTurno.map((fase, idx) => {
                           const clave = String(fase).toUpperCase();
-                          const esActiva = estado === clave;
+                          const esActiva = indiceActualTurno === idx;
+                          const completada = indiceActualTurno > idx;
+                          const esUbicacion = clave === "EN_COLA" || clave === "EN_PATIO";
                           const esFinal = clave === "LISTO" || clave === "LISTO_PARA_RECOGER";
+                          const deshabilitado = esActiva || completada || esUbicacion;
+
                           return (
                             <button
                               key={clave}
                               type="button"
+                              disabled={deshabilitado}
                               onClick={() => handleActualizarFase(turno.id, clave)}
                               style={{
                                 minHeight: "52px",
                                 borderRadius: "10px",
-                                border: esFinal
-                                  ? "2px solid #22c55e"
-                                  : esActiva
-                                  ? "2px solid var(--color-primary)"
+                                border: esActiva
+                                  ? `2px solid ${esFinal ? "#22c55e" : "var(--color-primary)"}`
+                                  : completada
+                                  ? "2px solid #86efac"
                                   : "1px solid #cbd5e1",
-                                background: esFinal
-                                  ? esActiva
+                                background: esActiva
+                                  ? esFinal
                                     ? "#22c55e"
-                                    : "#dcfce7"
-                                  : esActiva
-                                  ? "var(--color-primary)"
+                                    : "var(--color-primary)"
+                                  : completada
+                                  ? "#dcfce7"
                                   : "#f8fafc",
-                                color: esFinal ? (esActiva ? "#fff" : "#15803d") : esActiva ? "#fff" : "var(--color-ink)",
-                                fontWeight: esFinal ? 800 : 700,
+                                color: esActiva ? "#fff" : completada ? "#15803d" : esUbicacion ? "#94a3b8" : "var(--color-ink)",
+                                fontWeight: esActiva || esFinal ? 800 : 700,
                                 fontSize: "0.95rem",
-                                cursor: "pointer",
+                                cursor: deshabilitado ? "not-allowed" : "pointer",
                               }}
                             >
                               {labelFase(clave)}
@@ -433,6 +485,58 @@ export function TurnosPage() {
             })}
           </div>
         )}
+
+        {/* Historial de servicios del operario */}
+        <div
+          style={{
+            marginTop: "24px",
+            background: "#fff",
+            border: "1px solid var(--color-border)",
+            borderRadius: "14px",
+            padding: "16px 18px",
+          }}
+        >
+          <h2 style={{ fontSize: "1rem", marginBottom: "12px" }}>Historial de servicios</h2>
+          {historialServicios.length === 0 ? (
+            <p style={{ color: "#64748b", margin: 0, fontSize: "0.9rem" }}>
+              Aún no has completado servicios.
+            </p>
+          ) : (
+            <div className="table-container">
+              <table className="data-table" id="tabla-historial-operario">
+                <thead>
+                  <tr>
+                    <th>Turno</th>
+                    <th>Placa</th>
+                    <th>Servicio</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historialServicios.map((t) => (
+                    <tr key={t.id}>
+                      <td className="font-mono">{t.numero_turno || t.numeroTurno}</td>
+                      <td className="font-mono">{t.placa}</td>
+                      <td>{String(t.nombre_servicio || "").replace(/_/g, " ")}</td>
+                      <td>
+                        <StatusBadge status={t.estado_actual || t.estadoActual} />
+                      </td>
+                      <td className="font-mono">
+                        {t.fecha_ingreso || t.fechaIngreso
+                          ? new Date(t.fecha_ingreso || t.fechaIngreso).toLocaleString("es-CO", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </section>
     );
   }
@@ -455,6 +559,26 @@ export function TurnosPage() {
         </button>
       </header>
 
+      {/* Selector de vista: tablero en vivo / historial */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+        <button
+          type="button"
+          className={`btn btn--sm ${vista === "TABLERO" ? "btn--primary" : "btn--secondary"}`}
+          onClick={() => setVista("TABLERO")}
+          id="tab-tablero"
+        >
+          Tablero en vivo
+        </button>
+        <button
+          type="button"
+          className={`btn btn--sm ${vista === "HISTORIAL" ? "btn--primary" : "btn--secondary"}`}
+          onClick={abrirHistorial}
+          id="tab-historial"
+        >
+          Historial
+        </button>
+      </div>
+
       {actionMessage && (
         <div className="alert alert--success" role="status" style={{ marginBottom: "16px" }}>
           <span>{actionMessage}</span>
@@ -467,21 +591,96 @@ export function TurnosPage() {
         </div>
       )}
 
-      <TurnosBoard
-        turnos={turnos}
-        enAtencion={tablero?.en_atencion}
-        enCola={tablero?.en_cola}
-        isLoading={isLoadingTurnos}
-        isError={isErrorTurnos}
-        error={errorTurnos}
-        onRetry={refreshAll}
-        onFinalizar={handleFinalizar}
-        onCancelar={handleCancelar}
-        onActualizarFase={handleActualizarFase}
-        onAsignarBahia={handleAsignarBahia}
-        bahias={bahiasTodas.length > 0 ? bahiasTodas : bahiasDisponibles}
-        servicios={servicios}
-      />
+      {vista === "TABLERO" ? (
+        <TurnosBoard
+          turnos={turnos}
+          enAtencion={tablero?.en_atencion}
+          enCola={tablero?.en_cola}
+          isLoading={isLoadingTurnos}
+          isError={isErrorTurnos}
+          error={errorTurnos}
+          onRetry={refreshAll}
+          onCancelar={handleCancelar}
+          onActualizarFase={handleActualizarFase}
+          servicios={servicios}
+        />
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "12px", flexWrap: "wrap" }}>
+            <label htmlFor="input-filtro-historial-fecha" style={{ fontSize: "0.85rem", fontWeight: 600 }}>
+              Filtrar por fecha:
+            </label>
+            <input
+              type="date"
+              id="input-filtro-historial-fecha"
+              value={filtroFechaHistorial}
+              onChange={(e) => setFiltroFechaHistorial(e.target.value)}
+            />
+            {filtroFechaHistorial && (
+              <button
+                type="button"
+                className="btn btn--sm btn--ghost"
+                onClick={() => setFiltroFechaHistorial("")}
+              >
+                Limpiar filtro
+              </button>
+            )}
+          </div>
+
+          {isLoadingHistorial ? (
+            <Loader label="Cargando historial de turnos..." />
+          ) : errorHistorial ? (
+            <ErrorState error={errorHistorial} onRetry={fetchHistorial} />
+          ) : historial.length === 0 ? (
+            <EmptyState
+              title="Sin turnos en el historial"
+              description={
+                filtroFechaHistorial
+                  ? "No hay turnos registrados para la fecha seleccionada."
+                  : "Aquí aparecerán todos los turnos registrados, activos y cerrados."
+              }
+            />
+          ) : (
+            <div className="table-container">
+              <table className="data-table" id="tabla-historial-turnos">
+                <thead>
+                  <tr>
+                    <th>Turno</th>
+                    <th>Placa</th>
+                    <th>Servicio</th>
+                    <th>Operario</th>
+                    <th>Bahía</th>
+                    <th>Estado</th>
+                    <th>Ingreso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historial.map((t) => (
+                    <tr key={t.id}>
+                      <td className="font-mono">{t.numero_turno}</td>
+                      <td className="font-mono">{t.placa}</td>
+                      <td>{String(t.nombre_servicio || "").replace(/_/g, " ")}</td>
+                      <td>{t.nombre_operario || "—"}</td>
+                      <td>{t.nombre_bahia || "—"}</td>
+                      <td>
+                        <StatusBadge status={t.estado_actual} />
+                      </td>
+                      <td className="font-mono">
+                        {t.fecha_ingreso
+                          ? new Date(t.fecha_ingreso).toLocaleString("es-CO", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Formulario de registro en modal (RF-01) */}
       {isCreateOpen && (

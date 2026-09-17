@@ -57,11 +57,8 @@ export function TurnosBoard({
   isError = false,
   error = null,
   onRetry,
-  onFinalizar,
   onCancelar,
   onActualizarFase,
-  onAsignarBahia,
-  bahias = [],
   servicios = [],
 }) {
   if (isLoading) {
@@ -100,11 +97,8 @@ export function TurnosBoard({
     <TurnoCard
       key={turno.id}
       turno={turno}
-      onFinalizar={onFinalizar}
       onCancelar={onCancelar}
       onActualizarFase={onActualizarFase}
-      onAsignarBahia={onAsignarBahia}
-      bahias={bahias}
       servicios={servicios}
     />
   );

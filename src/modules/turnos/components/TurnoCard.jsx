@@ -5,11 +5,8 @@ const FASES_FALLBACK = ["POR_INICIAR", "ENJABONADO", "ENJUAGADO", "SECADO", "LIS
 
 export function TurnoCard({
   turno,
-  onFinalizar,
   onCancelar,
   onActualizarFase,
-  onAsignarBahia,
-  bahias = [],
   servicios = [],
 }) {
   const [loadingFase, setLoadingFase] = useState(false);
@@ -41,11 +38,9 @@ export function TurnoCard({
   const fases = Array.isArray(servicio?.fases) && servicio.fases.length > 0
     ? servicio.fases
     : FASES_FALLBACK;
-  // EN_COLA y EN_PATIO son estados de ubicación, no acciones de lavado.
-  const fasesAccionables = fases.filter((f) => {
-    const clave = String(f).toUpperCase();
-    return clave !== "EN_COLA" && clave !== "EN_PATIO";
-  });
+  const indiceActual = fases.findIndex((f) => String(f).toUpperCase() === estadoUpper);
+  // EN_COLA y EN_PATIO son estados de ubicación: se muestran pero no son clicables.
+  const esFaseUbicacion = (clave) => clave === "EN_COLA" || clave === "EN_PATIO";
 
   const cambiarFase = async (fase) => {
     if (!onActualizarFase) return;
@@ -97,34 +92,41 @@ export function TurnoCard({
             FASES DE LAVADO (TIEMPO REAL):
           </div>
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            {fasesAccionables.map((fase) => {
+            {fases.map((fase, idx) => {
               const clave = String(fase).toUpperCase();
-              const esActiva = estadoUpper === clave;
+              const esActiva = indiceActual === idx;
+              const completada = indiceActual > idx;
+              const esUbicacion = esFaseUbicacion(clave);
               const esFinal = clave === "LISTO" || clave === "LISTO_PARA_RECOGER";
+              const deshabilitado = loadingFase || esActiva || completada || esUbicacion;
+
               return (
                 <button
                   key={clave}
                   type="button"
-                  disabled={loadingFase || esActiva}
+                  disabled={deshabilitado}
                   onClick={() => cambiarFase(clave)}
+                  title={esUbicacion || completada ? undefined : `Avanzar a ${clave.replace(/_/g, " ")}`}
                   style={{
                     fontSize: "0.75rem",
                     padding: "6px 10px",
                     borderRadius: "4px",
-                    border: esFinal ? "1px solid #22c55e" : "1px solid #cbd5e1",
-                    background: esFinal
-                      ? esActiva
+                    border: `1px solid ${
+                      esActiva ? (esFinal ? "#22c55e" : "var(--color-primary)") : completada ? "#86efac" : "#cbd5e1"
+                    }`,
+                    background: esActiva
+                      ? esFinal
                         ? "#22c55e"
-                        : "#dcfce7"
-                      : esActiva
-                      ? "var(--color-primary)"
+                        : "var(--color-primary)"
+                      : completada
+                      ? "#dcfce7"
                       : "#fff",
-                    color: esFinal ? (esActiva ? "#fff" : "#15803d") : esActiva ? "#fff" : "var(--color-ink)",
-                    cursor: "pointer",
-                    fontWeight: esFinal ? 700 : 600,
+                    color: esActiva ? "#fff" : completada ? "#15803d" : esUbicacion ? "#94a3b8" : "var(--color-ink)",
+                    cursor: deshabilitado ? "not-allowed" : "pointer",
+                    fontWeight: esActiva || esFinal ? 700 : 600,
                   }}
                 >
-                  {String(clave).replace(/_/g, " ")}
+                  {clave.replace(/_/g, " ")}
                 </button>
               );
             })}
@@ -132,51 +134,17 @@ export function TurnoCard({
         </div>
       )}
 
-      {!esFinalizado && onAsignarBahia && (
-        <label
-          className="form__field"
-          style={{ borderTop: "1px dashed var(--color-border)", paddingTop: "10px", margin: 0 }}
-        >
-          <span style={{ fontSize: "0.75rem" }}>Bahía asignada</span>
-          <select
-            value={turno.id_bahia || turno.idBahia || ""}
-            onChange={(e) => e.target.value && onAsignarBahia(turno.id, e.target.value)}
-            id={`select-bahia-turno-${turno.id}`}
-          >
-            <option value="">Sin asignar</option>
-            {bahias.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.nombre || b.nombreBahia}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
-      {!esFinalizado && (onFinalizar || onCancelar) && (
+      {!esFinalizado && onCancelar && (
         <div className="turno-card__actions" style={{ marginTop: "4px" }}>
-          {onFinalizar && (
-            <button
-              type="button"
-              className="btn btn--sm btn--primary"
-              onClick={() => onFinalizar(turno.id)}
-              title="Completar entrega y finalizar"
-              id={`btn-finalizar-turno-${turno.id}`}
-            >
-              Entregar / Finalizar
-            </button>
-          )}
-          {onCancelar && (
-            <button
-              type="button"
-              className="btn btn--sm btn--danger-outline"
-              onClick={() => onCancelar(turno.id)}
-              title="Cancelar turno"
-              id={`btn-cancelar-turno-${turno.id}`}
-            >
-              Cancelar
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn btn--sm btn--danger-outline"
+            onClick={() => onCancelar(turno.id)}
+            title="Cancelar turno"
+            id={`btn-cancelar-turno-${turno.id}`}
+          >
+            Cancelar
+          </button>
         </div>
       )}
     </article>
