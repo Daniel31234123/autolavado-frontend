@@ -160,15 +160,6 @@ export function LoginPage() {
                   <span className="quick-chip__role">Administrador</span>
                   <span className="quick-chip__user">admin</span>
                 </button>
-                <button
-                  type="button"
-                  className="quick-chip"
-                  onClick={() => handleQuickFill("1001001", "Operario123*")}
-                  title="Autocompletar como Operario"
-                >
-                  <span className="quick-chip__role">Operario</span>
-                  <span className="quick-chip__user">1001001</span>
-                </button>
               </div>
             </div>
 
