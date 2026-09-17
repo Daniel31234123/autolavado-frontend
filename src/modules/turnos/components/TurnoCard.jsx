@@ -5,6 +5,7 @@ const FASES_FALLBACK = ["POR_INICIAR", "ENJABONADO", "ENJUAGADO", "SECADO", "LIS
 
 export function TurnoCard({
   turno,
+  onFinalizar,
   onCancelar,
   onActualizarFase,
   servicios = [],
@@ -134,17 +135,30 @@ export function TurnoCard({
         </div>
       )}
 
-      {!esFinalizado && onCancelar && (
+      {!esFinalizado && (onFinalizar || onCancelar) && (
         <div className="turno-card__actions" style={{ marginTop: "4px" }}>
-          <button
-            type="button"
-            className="btn btn--sm btn--danger-outline"
-            onClick={() => onCancelar(turno.id)}
-            title="Cancelar turno"
-            id={`btn-cancelar-turno-${turno.id}`}
-          >
-            Cancelar
-          </button>
+          {onFinalizar && (
+            <button
+              type="button"
+              className="btn btn--sm btn--primary"
+              onClick={() => onFinalizar(turno.id)}
+              title="Completar entrega y finalizar"
+              id={`btn-finalizar-turno-${turno.id}`}
+            >
+              Entregar / Finalizar
+            </button>
+          )}
+          {onCancelar && (
+            <button
+              type="button"
+              className="btn btn--sm btn--danger-outline"
+              onClick={() => onCancelar(turno.id)}
+              title="Cancelar turno"
+              id={`btn-cancelar-turno-${turno.id}`}
+            >
+              Cancelar
+            </button>
+          )}
         </div>
       )}
     </article>

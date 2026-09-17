@@ -57,6 +57,7 @@ export function TurnosBoard({
   isError = false,
   error = null,
   onRetry,
+  onFinalizar,
   onCancelar,
   onActualizarFase,
   servicios = [],
@@ -97,6 +98,7 @@ export function TurnosBoard({
     <TurnoCard
       key={turno.id}
       turno={turno}
+      onFinalizar={onFinalizar}
       onCancelar={onCancelar}
       onActualizarFase={onActualizarFase}
       servicios={servicios}

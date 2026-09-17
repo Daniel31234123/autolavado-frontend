@@ -170,6 +170,24 @@ export function TurnosPage() {
     }
   };
 
+  const handleFinalizar = async (id) => {
+    setActionError(null);
+    setActionMessage(null);
+    const turno = turnos.find((item) => Number(item.id) === Number(id));
+    const idBahia = turno?.id_bahia ?? turno?.idBahia;
+    try {
+      await turnosApi.finalizar(id);
+      if (idBahia != null) {
+        await bahiasApi.cambiarEstado(idBahia, "DISPONIBLE");
+      }
+      setActionMessage("Turno finalizado. La bahía quedó disponible para el próximo vehículo.");
+      refreshAll();
+      setTimeout(() => setActionMessage(null), 4000);
+    } catch (err) {
+      setActionError(err.message || "Error al finalizar el turno.");
+    }
+  };
+
   const handleCancelar = async (id) => {
     setActionError(null);
     setActionMessage(null);
@@ -600,6 +618,7 @@ export function TurnosPage() {
           isError={isErrorTurnos}
           error={errorTurnos}
           onRetry={refreshAll}
+          onFinalizar={handleFinalizar}
           onCancelar={handleCancelar}
           onActualizarFase={handleActualizarFase}
           servicios={servicios}
