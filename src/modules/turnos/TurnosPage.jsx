@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { turnosApi } from "../../api/turnosApi.js";
 import { bahiasApi } from "../../api/bahiasApi.js";
+import { operariosApi } from "../../api/operariosApi.js";
 import { useServicios } from "../servicios/hooks/useServicios.js";
 import { TurnosBoard } from "./components/TurnosBoard.jsx";
 import { CrearTurnoForm } from "./components/CrearTurnoForm.jsx";
@@ -42,6 +43,7 @@ export function TurnosPage() {
   // Alerta de acción
   const [actionMessage, setActionMessage] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [isLiberandoBahias, setIsLiberandoBahias] = useState(false);
 
   const fetchCatalogos = useCallback(async () => {
     // Las bahías disponibles se consultan siempre por su propio endpoint
@@ -112,6 +114,73 @@ export function TurnosPage() {
     fetchCatalogos();
   }, [fetchTurnos, fetchCatalogos]);
 
+  // El backend no libera la bahía al finalizar/cancelar un turno ni promueve la
+  // cola al desocuparse una bahía. Este helper hace ambas cosas desde el cliente:
+  //   1) marca la bahía liberada como DISPONIBLE,
+  //   2) asigna esa misma bahía al turno EN_COLA más antiguo (FIFO) que ya
+  //      tenga operario asignado, lo que lo hace pasar a EN_PATIO.
+  const liberarBahiaYPromoverCola = useCallback(async (idBahia) => {
+    if (idBahia == null || idBahia === "") return;
+    try {
+      await bahiasApi.cambiarEstado(idBahia, "DISPONIBLE");
+    } catch {
+      // La bahía pudo liberarse ya; continuamos con la promoción.
+    }
+    try {
+      const activos = await turnosApi.obtenerActivos();
+      const enCola = (Array.isArray(activos) ? activos : [])
+        .filter((t) => {
+          const estado = String(t.estado_actual || t.estadoActual || "").toUpperCase();
+          const sinBahia = (t.id_bahia ?? t.idBahia) == null;
+          const conOperario = (t.id_operario ?? t.idOperario) != null;
+          return estado === "EN_COLA" && sinBahia && conOperario;
+        })
+        .sort(
+          (a, b) =>
+            new Date(a.fecha_ingreso || a.fechaIngreso || 0) -
+            new Date(b.fecha_ingreso || b.fechaIngreso || 0)
+        );
+      const siguiente = enCola[0];
+      if (siguiente) {
+        await turnosApi.asignarBahia(siguiente.id, idBahia);
+      }
+    } catch {
+      // Sin permisos o sin turnos en cola: no bloquea la acción principal.
+    }
+  }, []);
+
+  // El backend deja operarios en OCUPADO cuando su turno termina y no hay cola,
+  // o cuando el turno se cancela. Aquí se liberan los operarios activos que
+  // están OCUPADO y no aparecen en ningún turno activo.
+  const liberarOperariosHuerfanos = useCallback(async () => {
+    try {
+      const [operarios, activos] = await Promise.all([
+        operariosApi.obtenerTodos(),
+        turnosApi.obtenerActivos(),
+      ]);
+      const enUso = new Set(
+        (Array.isArray(activos) ? activos : [])
+          .map((t) => t.id_operario ?? t.idOperario)
+          .filter((id) => id != null)
+          .map(String)
+      );
+      const huerfanos = (Array.isArray(operarios) ? operarios : []).filter((o) => {
+        const estado = String(o.estado || "").toUpperCase();
+        return o.activo === true && estado === "OCUPADO" && !enUso.has(String(o.id));
+      });
+      for (const operario of huerfanos) {
+        try {
+          await operariosApi.cambiarEstado(operario.id, "DISPONIBLE");
+        } catch {
+          // Ignora operarios que no puedan actualizarse.
+        }
+      }
+      return huerfanos.length;
+    } catch {
+      return 0;
+    }
+  }, []);
+
   const fetchHistorial = useCallback(async () => {
     setIsLoadingHistorial(true);
     setErrorHistorial(null);
@@ -153,11 +222,20 @@ export function TurnosPage() {
     setTimeout(() => setActionMessage(null), 5000);
   };
 
-  const handleActualizarFase = async (id, nuevaFase) => {
+  const handleActualizarFase = async (id, nuevaFase, idBahiaParam = null) => {
     setActionError(null);
     try {
       await turnosApi.actualizarFase(id, nuevaFase);
-      const esFinal = String(nuevaFase).toUpperCase() === "LISTO";
+      const esFinal = String(nuevaFase).toUpperCase().includes("LISTO");
+      // El backend marca el turno como FINALIZADO al llegar a LISTO, pero NO
+      // libera la bahía; y al salir de /turnos/activos el administrador ya no
+      // puede liberarla. Por eso se libera aquí de forma explícita.
+      if (esFinal) {
+        const turno = turnos.find((item) => Number(item.id) === Number(id));
+        const idBahia = idBahiaParam ?? turno?.id_bahia ?? turno?.idBahia;
+        await liberarBahiaYPromoverCola(idBahia);
+        await liberarOperariosHuerfanos();
+      }
       setActionMessage(
         esFinal
           ? "Turno finalizado: salió de patio y se liberaron el operario y la bahía."
@@ -177,9 +255,8 @@ export function TurnosPage() {
     const idBahia = turno?.id_bahia ?? turno?.idBahia;
     try {
       await turnosApi.finalizar(id);
-      if (idBahia != null) {
-        await bahiasApi.cambiarEstado(idBahia, "DISPONIBLE");
-      }
+      await liberarBahiaYPromoverCola(idBahia);
+      await liberarOperariosHuerfanos();
       setActionMessage("Turno finalizado. La bahía quedó disponible para el próximo vehículo.");
       refreshAll();
       setTimeout(() => setActionMessage(null), 4000);
@@ -194,13 +271,56 @@ export function TurnosPage() {
     if (!window.confirm("¿Seguro que deseas cancelar este turno? Se liberarán los recursos asignados.")) {
       return;
     }
+    const turno = turnos.find((item) => Number(item.id) === Number(id));
+    const idBahia = turno?.id_bahia ?? turno?.idBahia;
     try {
       await turnosApi.cancelar(id);
+      // El backend tampoco libera la bahía ni el operario al cancelar.
+      await liberarBahiaYPromoverCola(idBahia);
+      await liberarOperariosHuerfanos();
       setActionMessage("Turno cancelado exitosamente.");
       refreshAll();
       setTimeout(() => setActionMessage(null), 4000);
     } catch (err) {
       setActionError(err.message || "Error al cancelar el turno.");
+    }
+  };
+
+  // Corrige bahías OCUPADA y operarios OCUPADO que quedaron de turnos ya
+  // finalizados/cancelados (el backend no los libera). También promueve la cola.
+  const handleLiberarRecursosHuerfanos = async () => {
+    setActionError(null);
+    setActionMessage(null);
+    setIsLiberandoBahias(true);
+    try {
+      const [bahias, activos] = await Promise.all([
+        bahiasApi.obtenerTodas(),
+        turnosApi.obtenerActivos(),
+      ]);
+      const bahiasEnUso = new Set(
+        (Array.isArray(activos) ? activos : [])
+          .map((t) => t.id_bahia ?? t.idBahia)
+          .filter((id) => id != null)
+          .map(String)
+      );
+      const huerfanas = (Array.isArray(bahias) ? bahias : []).filter(
+        (b) => String(b.estado).toUpperCase() === "OCUPADA" && !bahiasEnUso.has(String(b.id))
+      );
+      for (const bahia of huerfanas) {
+        await liberarBahiaYPromoverCola(bahia.id);
+      }
+      const operariosLiberados = await liberarOperariosHuerfanos();
+      setActionMessage(
+        huerfanas.length > 0 || operariosLiberados > 0
+          ? `Se liberaron ${huerfanas.length} bahía(s) y ${operariosLiberados} operario(s) sin turno activo.`
+          : "No hay bahías ni operarios ocupados sin turno activo."
+      );
+      refreshAll();
+      setTimeout(() => setActionMessage(null), 5000);
+    } catch (err) {
+      setActionError(err.message || "No se pudieron liberar los recursos.");
+    } finally {
+      setIsLiberandoBahias(false);
     }
   };
 
@@ -447,7 +567,7 @@ export function TurnosPage() {
                               key={clave}
                               type="button"
                               disabled={deshabilitado}
-                              onClick={() => handleActualizarFase(turno.id, clave)}
+                              onClick={() => handleActualizarFase(turno.id, clave, idBahiaTurno)}
                               style={{
                                 minHeight: "52px",
                                 borderRadius: "10px",
@@ -567,14 +687,26 @@ export function TurnosPage() {
           <h1>Turnos y Patio</h1>
           <p>Monitoreo en vivo de recepción y patio. Registra el ingreso desde el botón (RF-01, RF-05).</p>
         </div>
-        <button
-          type="button"
-          className="btn btn--primary"
-          onClick={() => setIsCreateOpen(true)}
-          id="btn-abrir-crear-turno"
-        >
-          <span>Registrar Ingreso</span>
-        </button>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn--secondary"
+            onClick={handleLiberarRecursosHuerfanos}
+            disabled={isLiberandoBahias}
+            id="btn-liberar-recursos-huerfanos"
+            title="Libera bahías y operarios ocupados que ya no tienen un turno activo"
+          >
+            <span>{isLiberandoBahias ? "Liberando..." : "Liberar recursos sin turno"}</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => setIsCreateOpen(true)}
+            id="btn-abrir-crear-turno"
+          >
+            <span>Registrar Ingreso</span>
+          </button>
+        </div>
       </header>
 
       {/* Selector de vista: tablero en vivo / historial */}

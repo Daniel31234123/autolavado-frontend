@@ -47,7 +47,7 @@ export function TurnoCard({
     if (!onActualizarFase) return;
     setLoadingFase(true);
     try {
-      await onActualizarFase(turno.id, fase);
+      await onActualizarFase(turno.id, fase, idBahia);
     } finally {
       setLoadingFase(false);
     }
