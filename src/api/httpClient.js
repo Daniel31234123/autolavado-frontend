@@ -1,3 +1,5 @@
+import { trackRequestStart, trackRequestEnd, isBackground } from "./requestTracker.js";
+
 const RAW_BASE_URL =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_BASE_URL ||
@@ -63,6 +65,8 @@ export async function httpRequest(path, options = {}) {
     ...options.headers,
   };
 
+  const tracked = !isBackground();
+  if (tracked) trackRequestStart();
   let response;
   try {
     response = await fetch(url, {
@@ -70,6 +74,7 @@ export async function httpRequest(path, options = {}) {
       headers,
     });
   } catch (networkError) {
+    if (tracked) trackRequestEnd();
     throw new ApiError(
       `No fue posible conectar con el servidor en ${BASE_URL}. Revisa tu conexión o el estado del backend.`,
       { status: 0, body: networkError }
@@ -77,6 +82,7 @@ export async function httpRequest(path, options = {}) {
   }
 
   const body = await parseBody(response);
+  if (tracked) trackRequestEnd();
 
   if (!response.ok) {
     if (response.status === 401) {

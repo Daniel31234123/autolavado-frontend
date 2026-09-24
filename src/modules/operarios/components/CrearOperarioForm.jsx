@@ -86,7 +86,7 @@ export function CrearOperarioForm({ onCreated }) {
       {validationError && <p className="form__error">{validationError}</p>}
       {isError && <p className="form__error">{error?.message}</p>}
 
-      <button type="submit" className="btn btn--primary" disabled={isLoading}>
+      <button type="submit" className={`btn btn--primary${isLoading ? " btn--loading" : ""}`} disabled={isLoading}>
         {isLoading ? "Guardando..." : "Registrar operario"}
       </button>
     </form>

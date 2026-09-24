@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { runInBackground } from "../../api/requestTracker.js";
 
 /**
  * Ejecuta una función async y expone { data, error, status, refetch }.
@@ -23,8 +24,11 @@ export function useAsync(asyncFn, deps = [], options = {}) {
       setStatus("loading");
       setError(null);
     }
-    return fnRef
-      .current()
+    // Los sondeos silenciosos no encienden el indicador global de peticiones.
+    const invoke = silent
+      ? () => runInBackground(() => fnRef.current())
+      : () => fnRef.current();
+    return invoke()
       .then((result) => {
         setData(result);
         setStatus("success");

@@ -192,7 +192,7 @@ export function EditarOperarioModal({ isOpen, operario, onClose, onUpdated }) {
             </button>
             <button
               type="submit"
-              className="btn btn--primary"
+              className={`btn btn--primary${isLoading ? " btn--loading" : ""}`}
               disabled={isLoading}
               id="btn-submit-edit-operario"
             >

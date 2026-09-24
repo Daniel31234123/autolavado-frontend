@@ -208,7 +208,7 @@ export function CrearOperarioModal({ isOpen, onClose, onCreated }) {
             </button>
             <button
               type="submit"
-              className="btn btn--primary"
+              className={`btn btn--primary${isLoading ? " btn--loading" : ""}`}
               disabled={isLoading}
               id="btn-submit-crear-operario"
             >

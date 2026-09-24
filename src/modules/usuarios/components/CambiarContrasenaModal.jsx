@@ -112,7 +112,7 @@ export function CambiarContrasenaModal({ isOpen, usuario, onClose, onSaved }) {
             <button type="button" className="btn btn--secondary" onClick={onClose} disabled={isLoading}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn--primary" disabled={isLoading} id="btn-submit-password">
+            <button type="submit" className={`btn btn--primary${isLoading ? " btn--loading" : ""}`} disabled={isLoading} id="btn-submit-password">
               {isLoading ? "Guardando..." : "Cambiar Contraseña"}
             </button>
           </div>

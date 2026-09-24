@@ -3,6 +3,8 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { turnosApi } from "../../api/turnosApi.js";
 import { bahiasApi } from "../../api/bahiasApi.js";
 import { operariosApi } from "../../api/operariosApi.js";
+import { runInBackground } from "../../api/requestTracker.js";
+import { asignarColaABahia } from "./utils/asignarColaABahia.js";
 import { useServicios } from "../servicios/hooks/useServicios.js";
 import { TurnosBoard } from "./components/TurnosBoard.jsx";
 import { CrearTurnoForm } from "./components/CrearTurnoForm.jsx";
@@ -127,23 +129,7 @@ export function TurnosPage() {
       // La bahía pudo liberarse ya; continuamos con la promoción.
     }
     try {
-      const activos = await turnosApi.obtenerActivos();
-      const enCola = (Array.isArray(activos) ? activos : [])
-        .filter((t) => {
-          const estado = String(t.estado_actual || t.estadoActual || "").toUpperCase();
-          const sinBahia = (t.id_bahia ?? t.idBahia) == null;
-          const conOperario = (t.id_operario ?? t.idOperario) != null;
-          return estado === "EN_COLA" && sinBahia && conOperario;
-        })
-        .sort(
-          (a, b) =>
-            new Date(a.fecha_ingreso || a.fechaIngreso || 0) -
-            new Date(b.fecha_ingreso || b.fechaIngreso || 0)
-        );
-      const siguiente = enCola[0];
-      if (siguiente) {
-        await turnosApi.asignarBahia(siguiente.id, idBahia);
-      }
+      await asignarColaABahia(idBahia);
     } catch {
       // Sin permisos o sin turnos en cola: no bloquea la acción principal.
     }
@@ -204,9 +190,12 @@ export function TurnosPage() {
   useEffect(() => {
     refreshAll();
     // RNF-01: sondeo de actualización cada 2 s para latencia < 2 s (sin parpadeo)
-    const interval = setInterval(() => fetchTurnos({ silent: true }), 2000);
+    const interval = setInterval(
+      () => runInBackground(() => fetchTurnos({ silent: true })),
+      2000
+    );
     // Catálogos (bahías disponibles/disponibilidad) cada 5 s
-    const catInterval = setInterval(fetchCatalogos, 5000);
+    const catInterval = setInterval(() => runInBackground(fetchCatalogos), 5000);
     return () => {
       clearInterval(interval);
       clearInterval(catInterval);
@@ -690,7 +679,7 @@ export function TurnosPage() {
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           <button
             type="button"
-            className="btn btn--secondary"
+            className={`btn btn--secondary${isLiberandoBahias ? " btn--loading" : ""}`}
             onClick={handleLiberarRecursosHuerfanos}
             disabled={isLiberandoBahias}
             id="btn-liberar-recursos-huerfanos"

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { turnosApi } from "../../api/turnosApi.js";
+import { runInBackground } from "../../api/requestTracker.js";
 import { Loader } from "../../shared/components/Loader.jsx";
 
 /**
@@ -24,7 +25,7 @@ export function DisplayPage() {
 
   useEffect(() => {
     fetchDisplay();
-    const interval = setInterval(fetchDisplay, 5000);
+    const interval = setInterval(() => runInBackground(fetchDisplay), 5000);
     return () => clearInterval(interval);
   }, [fetchDisplay]);
 

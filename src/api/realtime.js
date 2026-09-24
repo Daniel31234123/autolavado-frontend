@@ -1,5 +1,6 @@
 import { BASE_URL } from "./httpClient.js";
 import { turnosApi } from "./turnosApi.js";
+import { runInBackground } from "./requestTracker.js";
 
 /**
  * Suscripción reactiva en tiempo real a la trazabilidad de un vehículo
@@ -53,8 +54,7 @@ export function suscribirTrazabilidad(identificador, onUpdate, onError) {
       if (activo && !pollingInterval) {
         pollingInterval = setInterval(() => {
           if (!activo) return;
-          turnosApi
-            .obtenerTrazabilidad(identificador)
+          runInBackground(() => turnosApi.obtenerTrazabilidad(identificador))
             .then((data) => {
               if (activo && onUpdate) onUpdate(data);
             })
@@ -66,8 +66,7 @@ export function suscribirTrazabilidad(identificador, onUpdate, onError) {
     // Si el navegador no soporta EventSource
     pollingInterval = setInterval(() => {
       if (!activo) return;
-      turnosApi
-        .obtenerTrazabilidad(identificador)
+      runInBackground(() => turnosApi.obtenerTrazabilidad(identificador))
         .then((data) => {
           if (activo && onUpdate) onUpdate(data);
         })

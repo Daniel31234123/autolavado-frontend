@@ -186,7 +186,7 @@ export function ServicioFormModal({ isOpen, servicio, onClose, onSaved }) {
             <button type="button" className="btn btn--secondary" onClick={onClose} disabled={isLoading}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn--primary" disabled={isLoading} id="btn-submit-servicio">
+            <button type="submit" className={`btn btn--primary${isLoading ? " btn--loading" : ""}`} disabled={isLoading} id="btn-submit-servicio">
               {isLoading ? "Guardando..." : isEditing ? "Guardar Cambios" : "Crear Servicio"}
             </button>
           </div>

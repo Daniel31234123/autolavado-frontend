@@ -94,7 +94,7 @@ export function BahiaFormModal({ isOpen, bahia, onClose, onSaved }) {
             <button type="button" className="btn btn--secondary" onClick={onClose} disabled={isLoading}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn--primary" disabled={isLoading} id="btn-submit-bahia">
+            <button type="submit" className={`btn btn--primary${isLoading ? " btn--loading" : ""}`} disabled={isLoading} id="btn-submit-bahia">
               {isLoading ? "Guardando..." : isEditing ? "Guardar Cambios" : "Crear Bahía"}
             </button>
           </div>

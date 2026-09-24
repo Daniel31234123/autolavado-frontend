@@ -236,7 +236,7 @@ export function UsuarioCreateModal({ isOpen, onClose, onCreated }) {
             <button type="button" className="btn btn--secondary" onClick={onClose} disabled={isLoading}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn--primary" disabled={isLoading} id="btn-submit-crear-usuario">
+            <button type="submit" className={`btn btn--primary${isLoading ? " btn--loading" : ""}`} disabled={isLoading} id="btn-submit-crear-usuario">
               {isLoading ? "Creando..." : "Crear Usuario"}
             </button>
           </div>

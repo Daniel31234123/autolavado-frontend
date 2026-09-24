@@ -417,7 +417,7 @@ export function CrearTurnoForm({ servicios = [], onCreated, onClose }) {
         )}
         <button
           type="submit"
-          className="btn btn--primary"
+          className={`btn btn--primary${isLoading ? " btn--loading" : ""}`}
           disabled={isLoading}
           id="btn-crear-turno-submit"
           style={{ flex: 1, minHeight: "48px" }}

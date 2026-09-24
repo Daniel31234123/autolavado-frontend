@@ -53,7 +53,7 @@ export function ConfirmModal({
           </button>
           <button
             type="button"
-            className={`btn ${danger ? "btn--danger" : "btn--primary"}`}
+            className={`btn ${danger ? "btn--danger" : "btn--primary"}${isLoading ? " btn--loading" : ""}`}
             onClick={onConfirm}
             disabled={isLoading}
             id="btn-confirm-accept"
