@@ -75,12 +75,16 @@ export const turnosService = {
   /**
    * GET /api/v1/turnos/historial  (todos los turnos, activos y cerrados)
    * @param {string} [fecha] - filtro opcional YYYY-MM-DD
+   * @param {string} [placa] - filtro opcional por placa
    * @returns {Promise<Turno[]>}
    */
-  getHistorial: async (fecha) => {
-    const query = fecha ? `?fecha=${encodeURIComponent(fecha)}` : "";
+  getHistorial: async (fecha, placa) => {
+    const params = new URLSearchParams();
+    if (fecha) params.append("fecha", fecha);
+    if (placa) params.append("placa", String(placa).trim().toUpperCase());
+    const query = params.toString() ? `?${params.toString()}` : "";
     const turnos = await http.get(`/api/v1/turnos/historial${query}`);
-    return turnos.map(normalizeTurno);
+    return (turnos || []).map(normalizeTurno);
   },
 
   /**

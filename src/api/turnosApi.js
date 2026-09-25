@@ -90,10 +90,14 @@ export const turnosApi = {
   /**
    * Historial completo de turnos (activos y cerrados) para el administrador
    * @param {string} [fecha] - filtro opcional YYYY-MM-DD
+   * @param {string} [placa] - filtro opcional por placa
    * @returns {Promise<any[]>}
    */
-  obtenerHistorial: (fecha) => {
-    const query = fecha ? `?fecha=${encodeURIComponent(fecha)}` : "";
+  obtenerHistorial: (fecha, placa) => {
+    const params = new URLSearchParams();
+    if (fecha) params.append("fecha", fecha);
+    if (placa) params.append("placa", String(placa).trim().toUpperCase());
+    const query = params.toString() ? `?${params.toString()}` : "";
     return http.get(`/api/v1/turnos/historial${query}`);
   },
 

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { StatusBadge } from "../../../shared/components/StatusBadge.jsx";
-
-const FASES_FALLBACK = ["POR_INICIAR", "ENJABONADO", "ENJUAGADO", "SECADO", "LISTO"];
+import { calcularControlFases, FASES_FALLBACK } from "../utils/fases.js";
 
 export function TurnoCard({
   turno,
@@ -39,9 +38,9 @@ export function TurnoCard({
   const fases = Array.isArray(servicio?.fases) && servicio.fases.length > 0
     ? servicio.fases
     : FASES_FALLBACK;
-  const indiceActual = fases.findIndex((f) => String(f).toUpperCase() === estadoUpper);
-  // EN_COLA y EN_PATIO son estados de ubicación: se muestran pero no son clicables.
-  const esFaseUbicacion = (clave) => clave === "EN_COLA" || clave === "EN_PATIO";
+  // Solo la siguiente fase válida es clicable; EN_COLA / EN_PATIO no son fases
+  // de lavado, por lo que desde allí la siguiente es la primera del catálogo.
+  const controlFases = calcularControlFases(fases, estadoUpper);
 
   const cambiarFase = async (fase) => {
     if (!onActualizarFase) return;
@@ -93,13 +92,9 @@ export function TurnoCard({
             FASES DE LAVADO (TIEMPO REAL):
           </div>
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            {fases.map((fase, idx) => {
-              const clave = String(fase).toUpperCase();
-              const esActiva = indiceActual === idx;
-              const completada = indiceActual > idx;
-              const esUbicacion = esFaseUbicacion(clave);
-              const esFinal = clave === "LISTO" || clave === "LISTO_PARA_RECOGER";
-              const deshabilitado = loadingFase || esActiva || completada || esUbicacion;
+            {controlFases.map((fase) => {
+              const { clave, esActiva, completada, esUbicacion, esFinal, esSiguiente, habilitado } = fase;
+              const deshabilitado = loadingFase || !habilitado;
 
               return (
                 <button
@@ -107,13 +102,21 @@ export function TurnoCard({
                   type="button"
                   disabled={deshabilitado}
                   onClick={() => cambiarFase(clave)}
-                  title={esUbicacion || completada ? undefined : `Avanzar a ${clave.replace(/_/g, " ")}`}
+                  title={habilitado ? `Avanzar a ${clave.replace(/_/g, " ")}` : undefined}
                   style={{
                     fontSize: "0.75rem",
                     padding: "6px 10px",
                     borderRadius: "4px",
                     border: `1px solid ${
-                      esActiva ? (esFinal ? "#22c55e" : "var(--color-primary)") : completada ? "#86efac" : "#cbd5e1"
+                      esActiva
+                        ? esFinal
+                          ? "#22c55e"
+                          : "var(--color-primary)"
+                        : completada
+                        ? "#86efac"
+                        : esSiguiente
+                        ? "var(--color-primary)"
+                        : "#cbd5e1"
                     }`,
                     background: esActiva
                       ? esFinal
@@ -121,10 +124,21 @@ export function TurnoCard({
                         : "var(--color-primary)"
                       : completada
                       ? "#dcfce7"
+                      : esSiguiente
+                      ? "#fff5f2"
                       : "#fff",
-                    color: esActiva ? "#fff" : completada ? "#15803d" : esUbicacion ? "#94a3b8" : "var(--color-ink)",
+                    color: esActiva
+                      ? "#fff"
+                      : completada
+                      ? "#15803d"
+                      : esSiguiente
+                      ? "var(--color-primary-dark)"
+                      : esUbicacion
+                      ? "#94a3b8"
+                      : "#94a3b8",
                     cursor: deshabilitado ? "not-allowed" : "pointer",
-                    fontWeight: esActiva || esFinal ? 700 : 600,
+                    fontWeight: esActiva || esFinal || esSiguiente ? 700 : 600,
+                    opacity: deshabilitado && !esActiva && !completada ? 0.55 : 1,
                   }}
                 >
                   {clave.replace(/_/g, " ")}

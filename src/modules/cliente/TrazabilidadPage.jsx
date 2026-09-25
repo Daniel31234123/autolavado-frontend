@@ -14,6 +14,10 @@ export function TrazabilidadPage() {
   const [error, setError] = useState("");
   const [enVivo, setEnVivo] = useState(false);
 
+  // RF-CL-02: cuando aún no existe turno de patio, el backend devuelve la
+  // reserva vigente del vehículo en lugar de un error.
+  const esReserva = trazabilidad?.tipo_registro === "RESERVA";
+
   // Iniciar suscripción en tiempo real cuando hay un criterio activo
   useEffect(() => {
     const query = hash || searchParams.get("placa") || "";
@@ -232,11 +236,17 @@ export function TrazabilidadPage() {
                   }}
                 />
                 <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>
-                  {enVivo ? "CONECTADO EN TIEMPO REAL" : "CONECTANDO..."}
+                  {esReserva
+                    ? "RESERVA REGISTRADA"
+                    : enVivo
+                    ? "CONECTADO EN TIEMPO REAL"
+                    : "CONECTANDO..."}
                 </span>
               </div>
               <span style={{ fontSize: "0.8rem", opacity: 0.8, fontFamily: "var(--font-mono)" }}>
-                Turno #{trazabilidad.numero_turno}
+                {esReserva
+                  ? `Reserva ${trazabilidad.codigo_reserva || trazabilidad.numero_turno}`
+                  : `Turno #${trazabilidad.numero_turno}`}
               </span>
             </div>
 
@@ -280,6 +290,68 @@ export function TrazabilidadPage() {
                 >
                   {trazabilidad.mensaje_estado || "Puedes pasar a recogerlo al patio de entregas."}
                 </p>
+              </div>
+            )}
+
+            {/* AVISO: Reserva aún no convertida en turno de patio (RF-CL-02) */}
+            {esReserva && (
+              <div
+                style={{
+                  background: "#fffbeb",
+                  border: "2px solid #f59e0b",
+                  borderRadius: "16px",
+                  padding: "24px",
+                  boxShadow: "0 8px 24px rgba(245, 158, 11, 0.15)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <path d="M16 2v4M8 2v4M3 10h18" />
+                  </svg>
+                  <h2
+                    style={{
+                      color: "#92400e",
+                      fontFamily: "var(--font-display)",
+                      fontSize: "1.5rem",
+                      margin: 0,
+                    }}
+                  >
+                    Tu reserva está registrada
+                  </h2>
+                </div>
+                <p style={{ color: "#78350f", fontSize: "1rem", marginBottom: "18px" }}>
+                  {trazabilidad.mensaje_estado ||
+                    "Tu cita está apartada. El equipo de patio la convertirá en turno cuando llegues."}
+                </p>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                    gap: "16px",
+                  }}
+                >
+                  <div>
+                    <span style={{ color: "#92400e", fontSize: "0.8rem" }}>Código de Reserva:</span>
+                    <div style={{ fontWeight: 800, fontFamily: "var(--font-mono)", fontSize: "1.15rem", color: "#92400e" }}>
+                      {trazabilidad.codigo_reserva || trazabilidad.numero_turno}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ color: "#92400e", fontSize: "0.8rem" }}>Fecha Programada:</span>
+                    <div style={{ fontWeight: 700 }}>{trazabilidad.fecha_reserva || "Por confirmar"}</div>
+                  </div>
+                  <div>
+                    <span style={{ color: "#92400e", fontSize: "0.8rem" }}>Hora Asignada:</span>
+                    <div style={{ fontWeight: 700 }}>
+                      {trazabilidad.hora_reserva ? String(trazabilidad.hora_reserva).slice(0, 5) : "Por confirmar"}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ color: "#92400e", fontSize: "0.8rem" }}>Estado:</span>
+                    <div style={{ fontWeight: 700 }}>{trazabilidad.estado_reserva || "CONFIRMADA"}</div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -332,7 +404,8 @@ export function TrazabilidadPage() {
               </div>
             </div>
 
-            {/* Barra de Progreso y Línea de Tiempo de Fases */}
+            {/* Barra de Progreso y Línea de Tiempo de Fases (solo para turnos) */}
+            {!esReserva && (
             <div
               style={{
                 background: "var(--color-surface)",
@@ -448,6 +521,7 @@ export function TrazabilidadPage() {
                 })}
               </div>
             </div>
+            )}
           </div>
         )}
       </main>

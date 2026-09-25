@@ -13,6 +13,9 @@ import { Loader } from "../../shared/components/Loader.jsx";
 import { ErrorState } from "../../shared/components/ErrorState.jsx";
 import { EmptyState } from "../../shared/components/EmptyState.jsx";
 import { StatusBadge } from "../../shared/components/StatusBadge.jsx";
+import { Alert } from "../../shared/components/Alert.jsx";
+import { mensajeErrorAmigable } from "../../shared/utils/errores.js";
+import { calcularControlFases, FASES_FALLBACK } from "./utils/fases.js";
 
 export function TurnosPage() {
   const { user, isAdmin, isOperario } = useAuth();
@@ -41,6 +44,7 @@ export function TurnosPage() {
   const [isLoadingHistorial, setIsLoadingHistorial] = useState(false);
   const [errorHistorial, setErrorHistorial] = useState(null);
   const [filtroFechaHistorial, setFiltroFechaHistorial] = useState("");
+  const [filtroPlacaHistorial, setFiltroPlacaHistorial] = useState("");
 
   // Alerta de acción
   const [actionMessage, setActionMessage] = useState(null);
@@ -171,14 +175,17 @@ export function TurnosPage() {
     setIsLoadingHistorial(true);
     setErrorHistorial(null);
     try {
-      const data = await turnosApi.obtenerHistorial(filtroFechaHistorial || undefined);
+      const data = await turnosApi.obtenerHistorial(
+        filtroFechaHistorial || undefined,
+        filtroPlacaHistorial || undefined
+      );
       setHistorial(Array.isArray(data) ? data : []);
     } catch (err) {
       setErrorHistorial(err);
     } finally {
       setIsLoadingHistorial(false);
     }
-  }, [filtroFechaHistorial]);
+  }, [filtroFechaHistorial, filtroPlacaHistorial]);
 
   // Refresca el historial al abrir la vista o al cambiar el filtro de fecha.
   useEffect(() => {
@@ -233,7 +240,9 @@ export function TurnosPage() {
       refreshAll();
       setTimeout(() => setActionMessage(null), 4000);
     } catch (err) {
-      setActionError(err.message || "Error al actualizar la fase del turno.");
+      // El estado del turno cambió en el servidor (conflicto): resincronizamos.
+      if (err?.status === 409 || err?.status === 404) refreshAll();
+      setActionError(mensajeErrorAmigable(err, "No se pudo actualizar la fase del turno."));
     }
   };
 
@@ -250,7 +259,8 @@ export function TurnosPage() {
       refreshAll();
       setTimeout(() => setActionMessage(null), 4000);
     } catch (err) {
-      setActionError(err.message || "Error al finalizar el turno.");
+      if (err?.status === 409 || err?.status === 404) refreshAll();
+      setActionError(mensajeErrorAmigable(err, "No se pudo finalizar el turno."));
     }
   };
 
@@ -271,7 +281,8 @@ export function TurnosPage() {
       refreshAll();
       setTimeout(() => setActionMessage(null), 4000);
     } catch (err) {
-      setActionError(err.message || "Error al cancelar el turno.");
+      if (err?.status === 409 || err?.status === 404) refreshAll();
+      setActionError(mensajeErrorAmigable(err, "No se pudo cancelar el turno."));
     }
   };
 
@@ -307,14 +318,13 @@ export function TurnosPage() {
       refreshAll();
       setTimeout(() => setActionMessage(null), 5000);
     } catch (err) {
-      setActionError(err.message || "No se pudieron liberar los recursos.");
+      setActionError(mensajeErrorAmigable(err, "No se pudieron liberar los recursos."));
     } finally {
       setIsLiberandoBahias(false);
     }
   };
 
   // RN-05: las fases visibles se generan dinámicamente desde el catálogo del servicio contratado
-  const FASES_FALLBACK = ["POR_INICIAR", "ENJABONADO", "ENJUAGADO", "SECADO", "LISTO"];
   const getFasesTurno = (turno) => {
     const idServicio = turno.id_servicio ?? turno.idServicio;
     const servicio = servicios.find((s) => Number(s.id) === Number(idServicio));
@@ -436,15 +446,20 @@ export function TurnosPage() {
         </div>
 
         {actionMessage && (
-          <div className="alert alert--success" role="status" style={{ marginBottom: "16px" }}>
-            <span>{actionMessage}</span>
-          </div>
+          <Alert variant="success" title="Acción completada" style={{ marginBottom: "16px" }}>
+            {actionMessage}
+          </Alert>
         )}
 
         {actionError && (
-          <div className="alert alert--danger" role="alert" style={{ marginBottom: "16px" }}>
-            <span>{actionError}</span>
-          </div>
+          <Alert
+            variant="danger"
+            title="No se pudo completar la acción"
+            onClose={() => setActionError(null)}
+            style={{ marginBottom: "16px" }}
+          >
+            {actionError}
+          </Alert>
         )}
 
         {misTurnos.length === 0 ? (
@@ -475,7 +490,7 @@ export function TurnosPage() {
             {misTurnos.map((turno) => {
               const estado = (turno.estado_actual || turno.estadoActual || "EN_COLA").toUpperCase();
               const fasesTurno = getFasesTurno(turno);
-              const indiceActualTurno = fasesTurno.findIndex((f) => String(f).toUpperCase() === estado);
+              const controlFases = calcularControlFases(fasesTurno, estado);
               const idBahiaTurno = turno.id_bahia ?? turno.idBahia ?? null;
               const tieneBahiaTurno = idBahiaTurno !== null && idBahiaTurno !== undefined && idBahiaTurno !== "";
 
@@ -543,13 +558,9 @@ export function TurnosPage() {
                         AVANCE DE FASES (PULSAR PARA REPORTAR EN VIVO):
                       </label>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
-                        {fasesTurno.map((fase, idx) => {
-                          const clave = String(fase).toUpperCase();
-                          const esActiva = indiceActualTurno === idx;
-                          const completada = indiceActualTurno > idx;
-                          const esUbicacion = clave === "EN_COLA" || clave === "EN_PATIO";
-                          const esFinal = clave === "LISTO" || clave === "LISTO_PARA_RECOGER";
-                          const deshabilitado = esActiva || completada || esUbicacion;
+                        {controlFases.map((fase) => {
+                          const { clave, esActiva, completada, esUbicacion, esFinal, esSiguiente, habilitado } = fase;
+                          const deshabilitado = !habilitado;
 
                           return (
                             <button
@@ -557,6 +568,7 @@ export function TurnosPage() {
                               type="button"
                               disabled={deshabilitado}
                               onClick={() => handleActualizarFase(turno.id, clave, idBahiaTurno)}
+                              title={habilitado ? `Avanzar a ${labelFase(clave)}` : undefined}
                               style={{
                                 minHeight: "52px",
                                 borderRadius: "10px",
@@ -564,6 +576,8 @@ export function TurnosPage() {
                                   ? `2px solid ${esFinal ? "#22c55e" : "var(--color-primary)"}`
                                   : completada
                                   ? "2px solid #86efac"
+                                  : esSiguiente
+                                  ? "2px solid var(--color-primary)"
                                   : "1px solid #cbd5e1",
                                 background: esActiva
                                   ? esFinal
@@ -571,11 +585,22 @@ export function TurnosPage() {
                                     : "var(--color-primary)"
                                   : completada
                                   ? "#dcfce7"
+                                  : esSiguiente
+                                  ? "#fff5f2"
                                   : "#f8fafc",
-                                color: esActiva ? "#fff" : completada ? "#15803d" : esUbicacion ? "#94a3b8" : "var(--color-ink)",
-                                fontWeight: esActiva || esFinal ? 800 : 700,
+                                color: esActiva
+                                  ? "#fff"
+                                  : completada
+                                  ? "#15803d"
+                                  : esSiguiente
+                                  ? "var(--color-primary-dark)"
+                                  : esUbicacion
+                                  ? "#94a3b8"
+                                  : "#94a3b8",
+                                fontWeight: esActiva || esFinal || esSiguiente ? 800 : 700,
                                 fontSize: "0.95rem",
                                 cursor: deshabilitado ? "not-allowed" : "pointer",
+                                opacity: deshabilitado && !esActiva && !completada ? 0.55 : 1,
                               }}
                             >
                               {labelFase(clave)}
@@ -746,25 +771,63 @@ export function TurnosPage() {
         />
       ) : (
         <>
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "12px", flexWrap: "wrap" }}>
-            <label htmlFor="input-filtro-historial-fecha" style={{ fontSize: "0.85rem", fontWeight: 600 }}>
-              Filtrar por fecha:
-            </label>
-            <input
-              type="date"
-              id="input-filtro-historial-fecha"
-              value={filtroFechaHistorial}
-              onChange={(e) => setFiltroFechaHistorial(e.target.value)}
-            />
-            {filtroFechaHistorial && (
-              <button
-                type="button"
-                className="btn btn--sm btn--ghost"
-                onClick={() => setFiltroFechaHistorial("")}
-              >
-                Limpiar filtro
-              </button>
-            )}
+          <div className="filters-bar" style={{ marginBottom: "16px" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <label
+                  htmlFor="input-filtro-historial-placa"
+                  style={{ fontSize: "0.85rem", fontWeight: 600 }}
+                >
+                  Placa:
+                </label>
+                <input
+                  type="search"
+                  id="input-filtro-historial-placa"
+                  placeholder="Buscar por placa..."
+                  className="font-mono"
+                  value={filtroPlacaHistorial}
+                  onChange={(e) => setFiltroPlacaHistorial(e.target.value.toUpperCase())}
+                  maxLength={6}
+                  style={{ textTransform: "uppercase", width: "160px" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <label
+                  htmlFor="input-filtro-historial-fecha"
+                  style={{ fontSize: "0.85rem", fontWeight: 600 }}
+                >
+                  Fecha:
+                </label>
+                <input
+                  type="date"
+                  id="input-filtro-historial-fecha"
+                  value={filtroFechaHistorial}
+                  onChange={(e) => setFiltroFechaHistorial(e.target.value)}
+                />
+              </div>
+
+              {(filtroFechaHistorial || filtroPlacaHistorial) && (
+                <button
+                  type="button"
+                  className="btn btn--sm btn--ghost"
+                  id="btn-limpiar-filtro-historial"
+                  onClick={() => {
+                    setFiltroFechaHistorial("");
+                    setFiltroPlacaHistorial("");
+                  }}
+                >
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
           </div>
 
           {isLoadingHistorial ? (
@@ -775,7 +838,11 @@ export function TurnosPage() {
             <EmptyState
               title="Sin turnos en el historial"
               description={
-                filtroFechaHistorial
+                filtroPlacaHistorial && filtroFechaHistorial
+                  ? `No hay turnos registrados para la placa ${filtroPlacaHistorial} en la fecha seleccionada.`
+                  : filtroPlacaHistorial
+                  ? `No se encontraron turnos para la placa ${filtroPlacaHistorial}.`
+                  : filtroFechaHistorial
                   ? "No hay turnos registrados para la fecha seleccionada."
                   : "Aquí aparecerán todos los turnos registrados, activos y cerrados."
               }

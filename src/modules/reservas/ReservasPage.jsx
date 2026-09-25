@@ -5,6 +5,8 @@ import { ErrorState } from "../../shared/components/ErrorState.jsx";
 import { EmptyState } from "../../shared/components/EmptyState.jsx";
 import { StatusBadge } from "../../shared/components/StatusBadge.jsx";
 import { ConfirmModal } from "../../shared/components/ConfirmModal.jsx";
+import { Alert } from "../../shared/components/Alert.jsx";
+import { mensajeErrorAmigable } from "../../shared/utils/errores.js";
 
 const ESTADOS_RESERVA_INICIAR = ["CONFIRMADA", "PENDIENTE", "RESERVADA"];
 const ESTADOS_RESERVA_CANCELABLES = ["CONFIRMADA", "PENDIENTE", "RESERVADA"];
@@ -75,7 +77,7 @@ export function ReservasPage() {
       const data = await reservasApi.obtenerPorCodigo(codigo);
       setDetalle(data);
     } catch (err) {
-      setActionError(err.message || "No se encontró la reserva indicada.");
+      setActionError(mensajeErrorAmigable(err, "No se encontró la reserva indicada."));
     }
   };
 
@@ -96,7 +98,7 @@ export function ReservasPage() {
       showToast(`Reserva ${cancelando.codigo_reserva} cancelada.`);
       setCancelando(null);
     } catch (err) {
-      setActionError(err.message || "Error al cancelar la reserva.");
+      setActionError(mensajeErrorAmigable(err, "No se pudo cancelar la reserva."));
     } finally {
       setIsProcessing(false);
     }
@@ -123,7 +125,7 @@ export function ReservasPage() {
       await fetchReservas({ silent: true });
       showToast(`Turno ${turno.numero_turno} generado desde la reserva ${reserva.codigo_reserva}.`);
     } catch (err) {
-      setActionError(err.message || "Error al iniciar el turno de la reserva.");
+      setActionError(mensajeErrorAmigable(err, "No se pudo iniciar el turno de la reserva."));
     }
     finally {
       inicioEnCursoRef.current = null;
@@ -145,9 +147,14 @@ export function ReservasPage() {
       )}
 
       {actionError && (
-        <div className="alert alert--danger" role="alert" style={{ marginBottom: "16px" }}>
-          <span>{actionError}</span>
-        </div>
+        <Alert
+          variant="danger"
+          title="No se pudo completar la acción"
+          onClose={() => setActionError(null)}
+          style={{ marginBottom: "16px" }}
+        >
+          {actionError}
+        </Alert>
       )}
 
       <div className="filters-bar">
